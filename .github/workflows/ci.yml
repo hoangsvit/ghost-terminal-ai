@@ -1,7 +1,12 @@
 name: Python CI
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+concurrency:
+  group: repository-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -22,6 +27,8 @@ jobs:
           bash vm/update.sh --help >/dev/null
       - name: Syntax check browser JavaScript
         run: node --check public/app.js
+      - name: Syntax check scenario JavaScript
+        run: node --check public/scenarios.js
       - name: Validate website scenario catalog
         run: node --test tests/test_scenarios.cjs
       - name: Compile all Python source files

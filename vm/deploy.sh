@@ -26,7 +26,7 @@ warn "Compute Engine VM, disk and public IP may incur charges until stopped/dele
 gcloud services enable compute.googleapis.com --project="$PROJECT_ID" --quiet
 info "[2/6] Fetching startup script"
 curl -fsSL --retry 3 \
-  'https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/feature/compute-engine-vm-gemma3/vm/startup.sh' \
+  'https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm/startup.sh' \
   -o "$STARTUP" || die "Failed to download startup script"
 bash -n "$STARTUP" || die "Startup script failed syntax check"
 info "[3/6] Selecting a zone"

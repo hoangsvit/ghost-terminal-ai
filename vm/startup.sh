@@ -38,7 +38,7 @@ EOF
     useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin ghostapp
   fi
   if [[ ! -d "$APP_DIR/.git" ]]; then
-    git clone --depth=1 --branch=feature/compute-engine-vm-gemma3 https://github.com/hoangsvit/ghost-terminal-ai.git "$APP_DIR"
+    git clone --depth=1 --branch=main https://github.com/hoangsvit/ghost-terminal-ai.git "$APP_DIR"
   fi
   chown -R ghostapp:ghostapp "$APP_DIR"
   echo "[4/5] Download Gemma 3 1B once to VM persistent disk"

@@ -1,0 +1,25 @@
+name: "Documentation improvement"
+description: "Report outdated, confusing or missing project documentation."
+title: "[Docs] "
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Affected document or link
+      placeholder: "README.md > Quick start"
+    validations:
+      required: true
+  - type: textarea
+    id: confusion
+    attributes:
+      label: What needs improvement?
+      description: Quote only brief non-sensitive fragments when needed.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Suggested correction
+      placeholder: "Update the command so that ..."
+    validations:
+      required: true

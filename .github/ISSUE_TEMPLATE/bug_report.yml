@@ -1,0 +1,68 @@
+name: "Bug report"
+description: "Report a reproducible defect. Use sanitized or synthetic logs only."
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Search existing issues first. Never post secrets,
+        customer data, private logs, tokens or exploit details. Follow SECURITY.md for vulnerabilities.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Analyze / Instant Scan
+        - Compare
+        - Story / Ollama
+        - UI / accessibility
+        - Local installation
+        - Compute Engine VM deployment
+        - CI / tests
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Explain the observed behavior and its impact.
+      placeholder: "The page shows ... when I ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "I expected ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide numbered steps, using a synthetic or redacted example.
+      placeholder: "1. Open ...\n2. Select ...\n3. Click ..."
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser, Python, deployment (local or hosted), relevant app commit.
+      placeholder: "Windows 11 / Chrome / hosted VM / commit abc123"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant synthetic logs or screenshots (optional)
+      description: Strip credentials, tokens, IPs tied to private infrastructure and personal data before sharing.
+      render: text
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I searched existing issues and removed private or sensitive information from this report.
+          required: true
