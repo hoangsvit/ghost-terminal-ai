@@ -38,6 +38,23 @@ ZONE=us-central1-a bash vm/deploy.sh
 
 You may also set `VM_NAME`, `PROJECT_ID`, `MACHINE_TYPE`, `NETWORK` and `FIREWALL_RULE` as environment variables before running. No `gcloud auth login` is necessary if Cloud Shell is already authenticated.
 
+### Recovery: Ollama error `panic: $HOME is not defined`
+
+Early VM deployments could install Ollama and then stop before downloading the model because Compute Engine startup metadata does not always provide a `HOME` environment variable.
+
+**No VM deletion or redeployment is required.** Run this command from Cloud Shell; it provides `HOME` to the existing startup script and repeats only installation steps, keeping the existing VM and repository:
+
+```bash
+gcloud compute ssh ghost-terminal-ai-vm \
+  --project=qwiklabs-gcp-01-dc59a1a9e903 \
+  --zone=us-east1-d \
+  --command='sudo env HOME=/root bash /opt/ghost-terminal-ai/vm/startup.sh'
+```
+
+This VM-specific recovery is for the user's lab project and zone; substitute your own project and zone when needed.
+
+New builds export `HOME=/root` if it is missing. The fix is also covered by CI. On success the startup script creates `ghost-terminal.service`, starts Caddy, and prints the local health check.
+
 ### IMPORTANT: first boot finishes separately
 
 When `gcloud compute instances create` succeeds, the script prints a **candidate** URL such as:

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 export DEBIAN_FRONTEND=noninteractive
+# GCE startup scripts run without a login environment; Ollama CLI requires HOME.
+export HOME="${HOME:-/root}"
+mkdir -p "$HOME"
+
 exec > >(tee -a /var/log/ghost-terminal-bootstrap.log) 2>&1
 trap 'echo "ERROR: bootstrap failed; see /var/log/ghost-terminal-bootstrap.log" >&2' ERR
 APP_DIR=/opt/ghost-terminal-ai

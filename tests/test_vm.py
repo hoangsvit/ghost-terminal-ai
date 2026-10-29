@@ -30,6 +30,12 @@ class VmTests(unittest.TestCase):
                 self.assertTrue(_allow_inference())
         _rate_times.clear()
 
+    def test_gce_startup_sets_home_before_ollama_pull(self):
+        from pathlib import Path
+        startup = (Path(__file__).resolve().parents[1] / "vm" / "startup.sh").read_text()
+        self.assertIn('export HOME="${HOME:-/root}"', startup)
+        self.assertLess(startup.index('export HOME='), startup.index('ollama pull gemma3:1b'))
+
     def test_no_throttle_in_local_mode(self):
         with patch.dict("os.environ", {"GHOST_RATE_LIMIT_PER_MINUTE": "0"}):
             self.assertTrue(_allow_inference())
