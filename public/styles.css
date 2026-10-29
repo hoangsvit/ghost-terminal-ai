@@ -63,7 +63,7 @@
 
 
 /* Compact, discoverable scenario chooser for manual QA of the actual model. */
-.scenario-picker { border:1px solid #40364f; background:#111221; border-radius:9px; margin:17px 0 22px; padding:14px; }
+.scenario-picker { border:1px solid #40364f; background:#111221; border-radius:9px; margin:2px 0 18px; padding:14px; }
 .scenario-header { display:flex; gap:8px; align-items:center; justify-content:space-between; color:#d3b0f4; font:700 10px var(--mono); letter-spacing:1px; margin-bottom:10px; }
 .scenario-header span:last-child { color:#8c859d; letter-spacing:0; font-weight:500; }
 .scenario-controls { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px; }
