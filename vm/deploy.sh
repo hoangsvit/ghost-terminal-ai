@@ -143,8 +143,7 @@ info "[5/6] Configure required network access (80/443, tagged VM only)"
 if gcloud compute firewall-rules describe "$FIREWALL_RULE" \
   --project="$PROJECT_ID" --format=json >"$LOG" 2>/dev/null; then
   # Verify that an existing rule is truly adequate; do not silently accept a wrong rule.
-  python3 - "$LOG" "$NETWORK" "$TAG" <<'PY' ||
-    die "Firewall rule $FIREWALL_RULE already exists but is not adequate. Review it manually (no automatic overwrite)."
+  python3 - "$LOG" "$NETWORK" "$TAG" <<'PY' || die "Existing firewall rule is not adequate; review it manually."
 import json, sys
 rule = json.load(open(sys.argv[1], encoding="utf-8"))
 network, tag = sys.argv[2:]
