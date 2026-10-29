@@ -60,6 +60,10 @@ python -m compileall -q app.py ghost_terminal
 
 19 offline unit/integration tests cover input validation, common secret redaction, local-host restriction, model schema, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
 
+## Optional Google Compute Engine VM deployment
+
+The [Compute Engine VM guide](DEPLOY_COMPUTE_ENGINE.md) packages **the same Gemma 3 + Ollama** on an Ubuntu VM with automatic HTTPS. No Cloud Run or paid AI API is needed. Hosted input reaches your Google Cloud VM; avoid real private logs. The original local app is unchanged.
+
 ## Demo and contest
 
 For the DEV Week 4 challenge, record a **real Gemma 3 generation demo** (video or screen recording). A UI mockup alone is not enough to demonstrate model inference.
