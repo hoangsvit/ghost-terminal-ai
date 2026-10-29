@@ -97,9 +97,27 @@ For contributing and repository health checks (Python, Node and VM scripts), see
 
 Offline unit/integration tests cover input validation, deterministic evidence, line differences, common secret redaction, local-host restriction, model schemas, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
 
+## One-command Google Cloud deploy (new or existing VM)
+
+Run this in **Google Cloud Shell** using the intended project. This is the same command for a fresh Qwiklabs project and for an existing `ghost-terminal-ai-vm`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm/update.sh -o /tmp/ghost-update.sh
+bash /tmp/ghost-update.sh --project YOUR_PROJECT_ID --ref main
+```
+
+- **No VM in that project:** provisions a new Compute Engine VM, persistent disk, Ollama/Gemma 3 and Caddy HTTPS, then verifies the public `/api/health`.
+- **VM already exists:** updates application code to the requested Git branch, restarts the app, checks model health and verifies public HTTPS; no reinstall.
+- **VM stopped:** starts the existing VM in deploy mode (billing may resume).
+- **Insufficient permissions, prohibited zones/quota, TLS or model startup failures:** exits with an actionable error instead of reporting success. New VM resources are **preserved**, not destroyed, if first boot fails.
+
+Creating/running a VM, disk and public IPv4 can incur charges. Qwiklabs projects may expire or restrict VM creation. Use `--no-create` to prohibit creating new resources, `--status` to check an existing VM, and `--rollback` to revert application code. **Nothing deploys automatically from a PR merge.**
+
+More commands, alternate-zone selection, checks and troubleshooting: [Compute Engine guide](DEPLOY_COMPUTE_ENGINE.md).
+
 ## Fast updates for an existing VM
 
-Once the VM exists, **do not rerun the VM creation script to update code**. In Google Cloud Shell:
+The updater is also suitable for an existing VM. In Google Cloud Shell:
 
 ```bash
 bash vm/update.sh --ref main
@@ -120,7 +138,7 @@ curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm
 bash /tmp/ghost-update.sh --ref main
 ```
 
-**Safety:** This script never creates a VM, reinstalls Ollama/model weights, or modifies Caddy/firewall rules. It refuses to overwrite uncommitted changes and checks `/api/health` after updating. Failed updates trigger an automatic attempt to restore the previous commit. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.
+**Safety:** The updater now creates a VM **only when none exists in the selected project**, unless `--no-create` is set. Existing VM updates preserve Ollama/model weights, reject uncommitted changes, and attempt rollback after unhealthy code updates. New VM initialization may require Compute Engine API, quota and firewall permissions. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.
 
 ## Optional Google Compute Engine VM deployment
 

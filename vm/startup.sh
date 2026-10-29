@@ -9,6 +9,13 @@ exec > >(tee -a /var/log/ghost-terminal-bootstrap.log) 2>&1
 trap 'echo "ERROR: bootstrap failed; see /var/log/ghost-terminal-bootstrap.log" >&2' ERR
 APP_DIR=/opt/ghost-terminal-ai
 STATE_DIR=/var/lib/ghost-terminal-ai
+# Use the ref requested by Cloud Shell when the VM was created. Reboots do not re-clone.
+META=http://metadata.google.internal/computeMetadata/v1
+REPO_REF="$(curl -fsS --max-time 3 -H 'Metadata-Flavor: Google'   "$META/instance/attributes/ghost-repo-ref" 2>/dev/null || true)"
+REPO_REF="${REPO_REF:-main}"
+[[ "$REPO_REF" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,127}$ &&
+   "$REPO_REF" != *..* && "$REPO_REF" != */ && "$REPO_REF" != *.lock ]] ||
+  { echo "ERROR: Invalid requested Git branch"; exit 1; }
 echo "===== ePlus.DEV - Starting Execution | Ghost Terminal VM ====="
 mkdir -p "$STATE_DIR"
 if [[ ! -f "$STATE_DIR/installed" ]]; then
@@ -33,12 +40,12 @@ EOF
   systemctl daemon-reload
   systemctl enable --now ollama
   systemctl restart ollama
-  echo "[3/5] Clone VM branch from GitHub"
+  echo "[3/5] Clone selected Git branch from GitHub ($REPO_REF)"
   if ! id ghostapp >/dev/null 2>&1; then
     useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin ghostapp
   fi
   if [[ ! -d "$APP_DIR/.git" ]]; then
-    git clone --depth=1 --branch=main https://github.com/hoangsvit/ghost-terminal-ai.git "$APP_DIR"
+    git clone --depth=1 --branch="$REPO_REF" https://github.com/hoangsvit/ghost-terminal-ai.git "$APP_DIR"
   fi
   chown -R ghostapp:ghostapp "$APP_DIR"
   echo "[4/5] Download Gemma 3 1B once to VM persistent disk"
@@ -79,14 +86,12 @@ WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
   systemctl enable --now ghost-terminal
-  touch "$STATE_DIR/installed"
 else
   echo "[1-4/5] Previous install found; keep model, restart services"
   systemctl enable --now ollama
   systemctl enable --now ghost-terminal
 fi
 echo "[5/5] Set up automatic HTTPS with Caddy"
-META=http://metadata.google.internal/computeMetadata/v1
 IP="$(curl -fsS --retry 5 --retry-delay 2 -H 'Metadata-Flavor: Google' "$META/instance/network-interfaces/0/access-configs/0/external-ip")"
 [[ -n "$IP" ]] || { echo 'VM has no external IPv4 address' >&2; exit 1; }
 DOMAIN="$IP.sslip.io"
@@ -111,7 +116,19 @@ systemctl restart caddy
 echo "==== VM APP CONFIGURED ===="
 echo "Candidate URL: https://$DOMAIN"
 echo "HTTPS depends on public DNS, open ports 80/443 and certificate issuance."
-echo "Local health:"
-curl -fsS --max-time 10 http://127.0.0.1:8765/api/health || true
-echo
+echo "Checking model and API readiness before marking bootstrap installed..."
+HEALTHY=0
+for i in {1..30}; do
+  if curl -fsS --max-time 6 http://127.0.0.1:8765/api/health     -o /tmp/ghost-terminal-bootstrap-health.json 2>/dev/null &&
+    python3 -c 'import json; d=json.load(open("/tmp/ghost-terminal-bootstrap-health.json")); assert d.get("ready") is True and d.get("deployment") == "vm"'; then
+    HEALTHY=1
+    break
+  fi
+  sleep 3
+done
+[[ "$HEALTHY" -eq 1 ]] || { echo "ERROR: Local model/HTTP health never became ready"; exit 1; }
+cat /tmp/ghost-terminal-bootstrap-health.json
+printf '\n'
+touch "$STATE_DIR/installed"
+echo "==== BOOTSTRAP READY ===="
 echo "Logs: /var/log/ghost-terminal-bootstrap.log"
