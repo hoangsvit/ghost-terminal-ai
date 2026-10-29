@@ -60,7 +60,7 @@ python -m compileall -q app.py ghost_terminal
 
 19 offline unit/integration tests cover input validation, common secret redaction, local-host restriction, model schema, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
 
-## Demo and contest
+## Optional public cloud demo\n\nWant an HTTPS demo for DEV.to without running Ollama on the visitor's laptop? The [Cloudflare Workers AI deployment guide](DEPLOY_CLOUDFLARE.md) runs **Gemma 4** on Cloudflare while preserving the original **local Gemma 3** app. Hosted requests are sent to Cloudflare; **never upload sensitive logs**.\n\n## Demo and contest
 
 For the DEV Week 4 challenge, record a **real Gemma 3 generation demo** (video or screen recording). A UI mockup alone is not enough to demonstrate model inference.
 
