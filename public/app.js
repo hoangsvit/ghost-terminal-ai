@@ -7,53 +7,99 @@ const button = $('generate-btn');
 const tabs = Array.from(document.querySelectorAll('.tool-tab'));
 let activeTool = 'analyze';
 
-const failingLog = [
-  '$ npm run start',
-  '> ghost-server@1.0.0 start',
-  '> node server.js',
-  '[23:58:11] Starting deployment',
-  'Error: listen EADDRINUSE: address already in use :::3000',
-  '    at Server.setupListenHandle (node:net:1880:16)',
-  '    at listenInCluster (node:net:1941:12)',
-  '  code: EADDRINUSE',
-  '  port: 3000',
-  'Process exited with code 1',
-  '[23:58:14] Deployment failed'
-].join('\n');
+let loadedScenario = null;
 
-const previousLog = [
-  '$ npm run start',
-  '[23:55:00] Starting deployment',
-  '[23:55:02] Server listening on port 3000',
-  '[23:55:03] Health check passed',
-  '[23:55:04] Deployment succeeded'
-].join('\n');
+function selectedScenario() {
+  return TEST_SCENARIOS[activeTool].find(s => s.id === $('scenario-select').value);
+}
 
-const storyLog = [
-  '$ git status --short',
-  ' M src/last-light.js',
-  '?? notes/remember-me.txt',
-  '$ git log --oneline -5',
-  '7e4a92b fix: restore the last light in the server room',
-  '0db7ee3 refactor: remove legacy heartbeat monitor',
-  'b12b2a8 docs: "we will come back to this someday"',
-  '$ tail -n 3 logs/worker.log',
-  '[23:58:57] worker-07: heartbeat missed',
-  '[23:59:03] worker-07: reconnecting...',
-  '[00:00:00] worker-07: welcome back'
-].join('\n');
+function explainScenario() {
+  const scenario = selectedScenario();
+  $('scenario-description').textContent = scenario ? scenario.description : '';
+  $('scenario-expected').textContent = scenario ? 'Expected: ' + scenario.expected : '';
+}
+
+function populateScenarios() {
+  const select = $('scenario-select');
+  select.replaceChildren();
+  const scenarios = TEST_SCENARIOS[activeTool];
+  for (const scenario of scenarios) {
+    const option = document.createElement('option');
+    option.value = scenario.id;
+    option.textContent = scenario.label;
+    select.appendChild(option);
+  }
+  $('scenario-count').textContent = scenarios.length + ' examples';
+  explainScenario();
+}
+
+function verifyLoadedScenario(data, tool) {
+  const element = $('scenario-verification');
+  element.hidden = true;
+  const scenario = loadedScenario;
+  if (!scenario || scenario.tool !== tool ||
+      input.value !== scenario.log ||
+      (tool === 'compare' && baseline.value !== scenario.baseline)) return;
+
+  const checks = [];
+  if (tool === 'story') {
+    checks.push(Boolean(data.story && data.story.title && data.story.transmission && data.story.whisper));
+  } else {
+    const signals = data.signals || {};
+    const evidence = signals.evidence || [];
+    checks.push(signals.severity === scenario.severity);
+    if (scenario.token) {
+      checks.push(evidence.some(item =>
+        item.text.includes(scenario.token) &&
+        (scenario.line == null || item.line === scenario.line)));
+    } else {
+      checks.push((signals.signals_found || 0) === 0);
+    }
+    if (scenario.redactions != null) checks.push(data.redactions === scenario.redactions);
+    if (tool === 'compare') {
+      const diff = data.diff || {};
+      if (scenario.identical) {
+        checks.push(diff.added_count === 0 && diff.removed_count === 0);
+      } else {
+        checks.push(diff.added_count > 0 && diff.removed_count > 0);
+        checks.push((diff.new_error_signals || []).some(item => item.text.includes(scenario.token)));
+      }
+    }
+  }
+  const passed = checks.filter(Boolean).length;
+  element.hidden = false;
+  element.dataset.result = passed === checks.length ? 'pass' : 'review';
+  element.textContent = 'Sample check: ' + passed + '/' + checks.length +
+    ' expected signals matched. This checks log evidence/output structure, not AI diagnosis accuracy.';
+}
 
 function updateCount() {
   $('char-count').textContent = input.value.length + ' / 6000';
   $('baseline-count').textContent = baseline.value.length + ' / 6000';
 }
-input.addEventListener('input', updateCount);
-baseline.addEventListener('input', updateCount);
+function onEdit() {
+  updateCount();
+  $('scenario-verification').hidden = true;
+}
+input.addEventListener('input', onEdit);
+baseline.addEventListener('input', onEdit);
+
+$('scenario-select').addEventListener('change', () => {
+  loadedScenario = null;
+  $('scenario-verification').hidden = true;
+  explainScenario();
+});
 
 $('sample-btn').addEventListener('click', () => {
-  input.value = activeTool === 'story' ? storyLog : failingLog;
-  if (activeTool === 'compare') baseline.value = previousLog;
+  if (button.disabled) return;
+  const scenario = selectedScenario();
+  if (!scenario) return;
+  input.value = scenario.log;
+  if (activeTool === 'compare') baseline.value = scenario.baseline;
+  loadedScenario = {tool: activeTool, ...scenario};
   updateCount();
+  resetResults();
+  input.focus();
 });
 
 function resetResults() {
@@ -61,11 +107,14 @@ function resetResults() {
   $('analysis-result').hidden = true;
   $('story-result').hidden = true;
   $('error-message').hidden = true;
+  $('scenario-verification').hidden = true;
 }
 
 function setTool(tool) {
   if (!['analyze', 'compare', 'story'].includes(tool) || button.disabled) return;
   activeTool = tool;
+  loadedScenario = null;
+  populateScenarios();
   for (const tab of tabs) {
     const selected = tab.dataset.tool === tool;
     tab.classList.toggle('active', selected);
@@ -198,12 +247,12 @@ function showStory(data) {
 button.addEventListener('click', async () => {
   $('error-message').hidden = true;
   if (!input.value.trim()) {
-    error('Paste a log or select “Load example” first.');
+    error('Paste a log or choose a test scenario first.');
     input.focus();
     return;
   }
   if (activeTool === 'compare' && !baseline.value.trim()) {
-    error('Paste the previous log or use “Load example” to fill both logs.');
+    error('Paste the previous log or load a Compare scenario first.');
     baseline.focus();
     return;
   }
@@ -213,6 +262,8 @@ button.addEventListener('click', async () => {
   if (selectedTool === 'compare') payload.baseline = baseline.value;
   if (selectedTool === 'story') payload.mode = document.querySelector('input[name="mode"]:checked').value;
   button.disabled = true;
+  $('sample-btn').disabled = true;
+  $('scenario-select').disabled = true;
   $('generate-label').textContent = 'Inspecting the evidence…';
   try {
     const controller = new AbortController();
@@ -230,11 +281,14 @@ button.addEventListener('click', async () => {
     if (!response.ok) throw new Error(data.error || 'AI inference failed.');
     if (selectedTool === 'story') showStory(data);
     else showDiagnosis(data);
+    verifyLoadedScenario(data, selectedTool);
     health();
   } catch (err) {
     error(err.name === 'AbortError' ? 'Gemma timed out. Try a shorter log.' : err.message);
   } finally {
     button.disabled = false;
+    $('sample-btn').disabled = false;
+    $('scenario-select').disabled = false;
     $('generate-label').textContent = ({
       analyze:'Analyze logs',compare:'Compare runs',story:'Awaken the terminal'
     })[activeTool];

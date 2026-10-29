@@ -18,6 +18,16 @@ All inputs are sanitized using \`prepare_input\` before inference or comparison.
 - The confidence label is deliberately bounded to \`medium\` when heuristics match and \`low\` when they do not. Do not interpret it as calibrated statistical certainty.
 - Neither AI answers nor user-supplied log commands are automatically executed.
 
+### Test scenarios directly on the website
+
+Choose **Analyze**, **Compare**, or **Story**. A compact TEST SCENARIOS selector appears above the log editor.
+
+Select a scenario, read its **Expected** result, then click **Load scenario**. For Compare, both the previous and current logs are populated. Selecting or loading alone never calls Gemma 3. Press the action button to run the real model.
+
+After a successful response, the page shows a **Sample check** comparing deterministic error signatures, severity, selected source line numbers and any line differences against the selected sample. This does **not** certify the accuracy of model-generated reasoning.
+
+The samples cover port collisions, missing Python dependencies, OOM, disk full, Google Cloud region policy, network faults, synthetic redaction checks, no-error uncertainty, deployment comparisons and storytelling. All logs are fictional. The catalog is in `public/scenarios.js` and checked by `node --test tests/test_scenarios.cjs`.
+
 ### Manual test
 1. Open the site. **Analyze** must be selected by default.
 2. Click **Load example**; a synthetic Node.js \`EADDRINUSE\` log appears.
@@ -31,6 +41,7 @@ All inputs are sanitized using \`prepare_input\` before inference or comparison.
 \`\`\`bash
 python3 -m unittest discover -s tests -v
 node --check public/app.js
+node --test tests/test_scenarios.cjs
 bash -n vm/startup.sh
 \`\`\`
 

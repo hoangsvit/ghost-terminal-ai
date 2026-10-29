@@ -18,7 +18,7 @@ from ghost_terminal.diagnosis import generate_diagnosis
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
-ROUTES = {"/": ("index.html", "text/html; charset=utf-8"), "/styles.css": ("styles.css", "text/css; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8")}
+ROUTES = {"/": ("index.html", "text/html; charset=utf-8"), "/styles.css": ("styles.css", "text/css; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"), "/scenarios.js": ("scenarios.js", "text/javascript; charset=utf-8")}
 MAX_REQUEST_BYTES = 25_000
 _rate_times = deque()
 _rate_lock = Lock()

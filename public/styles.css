@@ -60,3 +60,26 @@
   .diff-grid { grid-template-columns:1fr; }
   .report-section h4 { font-size:10px; }
 }
+
+
+/* Compact, discoverable scenario chooser for manual QA of the actual model. */
+.scenario-picker { border:1px solid #40364f; background:#111221; border-radius:9px; margin:17px 0 22px; padding:14px; }
+.scenario-header { display:flex; gap:8px; align-items:center; justify-content:space-between; color:#d3b0f4; font:700 10px var(--mono); letter-spacing:1px; margin-bottom:10px; }
+.scenario-header span:last-child { color:#8c859d; letter-spacing:0; font-weight:500; }
+.scenario-controls { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px; }
+.scenario-controls select { appearance:none; -webkit-appearance:none; width:100%; min-width:0; border:1px solid #4d425e; border-radius:6px; color:#f1e8ff; background:#1b192c; font:12px var(--mono); padding:12px 30px 12px 11px; cursor:pointer; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c7a5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 9px center; }
+.scenario-controls select:hover, .scenario-controls select:focus-visible { border-color:#aa81e9; }
+.scenario-controls select:focus-visible { outline:2px solid #ad8bd7; outline-offset:2px; }
+.scenario-load { min-height:42px; border-radius:6px; padding:10px 12px; color:#efe4fc; background:#3a2b56; border:1px solid #715691; font:600 11px var(--mono); white-space:nowrap; }
+.scenario-load:hover:not(:disabled) { background:#51386e; }
+.scenario-load:disabled, .scenario-controls select:disabled { opacity:.55; cursor:not-allowed; }
+.scenario-description { margin:10px 0 3px; font:12px/1.5 var(--sans); color:#b9b1c8; }
+.scenario-expected { margin:0; font:11px/1.55 var(--mono); color:#d1b596; }
+.scenario-verification { margin:0 25px 18px; padding:12px 14px; border:1px solid #6d604a; border-radius:7px; background:#26211e; color:#e9d6ae; font:11px/1.6 var(--mono); }
+.scenario-verification[data-result="pass"] { border-color:#487d6b; background:#162b27; color:#b7e0d0; }
+@media(max-width:600px){
+  .scenario-controls { grid-template-columns:minmax(0,1fr); }
+  .scenario-load { width:100%; }
+  .scenario-verification { margin:0 19px 18px; }
+  .scenario-picker { padding:12px; }
+}

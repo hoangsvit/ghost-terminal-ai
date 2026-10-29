@@ -7,6 +7,7 @@
   <meta name="description" content="Ghost Terminal AI diagnoses errors, compares deployment logs, and creates stories with open-weight Gemma 3.">
   <title>Ghost Terminal AI — Find the ghost in your logs</title>
   <link rel="stylesheet" href="/styles.css">
+  <script src="/scenarios.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -40,7 +41,16 @@
             <button type="button" class="tool-tab" data-tool="story" aria-pressed="false">✦ Story</button>
           </div>
           <p class="tool-hint" id="tool-hint">Understand a failure, inspect source evidence, and decide what to verify next.</p>
-          <div class="field-label"><label for="log-input" id="current-label">ERROR / DEPLOYMENT LOG</label><button class="text-button" id="sample-btn" type="button">↗ Load example</button></div>
+          <div class="scenario-picker">
+            <div class="scenario-header"><span>⌁ TEST SCENARIOS</span><span id="scenario-count">8 examples</span></div>
+            <div class="scenario-controls">
+              <select id="scenario-select" aria-label="Choose test scenario" aria-describedby="scenario-expected"></select>
+              <button class="scenario-load" id="sample-btn" type="button">↗ Load scenario</button>
+            </div>
+            <p id="scenario-description" class="scenario-description"></p>
+            <p id="scenario-expected" class="scenario-expected"></p>
+          </div>
+          <div class="field-label"><label for="log-input" id="current-label">ERROR / DEPLOYMENT LOG</label></div>
           <div class="editor"><div class="editor-head"><span class="window-dots"><i></i><i></i><i></i></span><span id="editor-filename">~/deployment.log</span><span>UTF-8</span></div>
             <textarea id="log-input" spellcheck="false" maxlength="6000" aria-describedby="input-help" placeholder="[23:58:11] Starting deployment&#10;Error: listen EADDRINUSE: address already in use :::3000&#10;Process exited with code 1"></textarea>
             <div class="editor-foot"><span id="input-help">Never paste private secrets or sensitive personal data.</span><span id="char-count">0 / 6000</span></div>
@@ -95,6 +105,7 @@
               <div class="result-footer"><span id="redaction-count"></span><button type="button" id="copy-btn">⧉ Copy story</button></div>
             </div>
           </div>
+          <div class="scenario-verification" id="scenario-verification" role="status" hidden></div>
           <div class="error-message" id="error-message" role="alert" hidden></div>
           <div class="output-foot"><span><i class="privacy-dot"></i> LOCALLY GENERATED · NEVER UPLOADED</span><span>MADE WITH <b>GEMMA 3</b> + <b>OLLAMA</b></span></div>
         </article>
