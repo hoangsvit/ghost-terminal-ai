@@ -18,5 +18,7 @@ jobs:
         run: |
           bash -n vm/deploy.sh
           bash -n vm/startup.sh
+      - name: Syntax check browser JavaScript
+        run: node --check public/app.js
       - name: Compile all Python source files
         run: python -m compileall -q app.py ghost_terminal

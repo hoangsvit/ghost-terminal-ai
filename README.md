@@ -1,18 +1,26 @@
 # 👻 Ghost Terminal AI
 
-**Every log leaves a haunting.** A privacy-first storytelling studio that transforms command history, build logs, and old Git commits into original microfiction using **Gemma 3**, an open-weight model, through **Ollama**, running locally.
+**Find the ghost in your logs.** Open-weight **Gemma 3** via **Ollama** now explains software failures, compares CI/deployment logs, and optionally turns terminal history into fiction. Works locally or on a user-hosted Compute Engine VM.
 
 Created for **Hacktoberfest 2026 • DEV Challenge Week 4: Ghost in the Machine** (Oct 26–31, 2026).
 
 ## What does it do?
 
-Paste a terminal log, choose **Haunting**, **Remembrance**, or **Mystery**, and generate a new fictional story inspired by technical traces. Gemma 3 performs the narrative generation locally, returns structured JSON, and the app discards invented quotes not present in the input.
+**Analyze (default):** paste a stack trace, CI log or deployment output. The service extracts recognizable error signatures with exact source line numbers; Gemma 3 explains likely causes and suggests *verification steps*, not automatic fixes.
+
+**Compare:** paste a current and previous deployment log. The Python backend computes an exact line diff; Gemma 3 summarizes the changed behavior and potential regressions.
+
+**Story:** retain the original Haunting, Remembrance and Mystery creative writing modes. This experiment remains part of the Hacktoberfest theme.
+
+**Important:** the analysis is a *hypothesis*, not an incident root cause proven by AI. Evidence is assembled deterministically from the sanitized input, not AI-invented citations. Compare detects line changes, not necessarily causal changes.
 
 This is **real AI inference, not a simulated response**. Generation requires a downloaded Gemma model and Ollama running. No hosted AI account or paid API is needed.
 
 ## Features
 
-- Three original storytelling frequencies: Haunting, Remembrance, Mystery
+- **Analyze Logs** with probable causes, severity heuristics, numbered evidence and safe checks
+- **Compare Logs** using an exact server-side line diff and AI interpretation
+- **Story**: three original storytelling frequencies: Haunting, Remembrance, Mystery
 - Open-weight Gemma 3 inference via Ollama's local HTTP API
 - Backend bound to `127.0.0.1`; only loopback Ollama hosts accepted
 - Best-effort redaction of common tokens and passwords prior to inference
@@ -30,7 +38,7 @@ ollama pull gemma3:1b
 python app.py
 ```
 
-Keep Ollama running and open **http://127.0.0.1:8765** in your browser. Click **Load sample log** and then **Awaken the terminal**.
+Keep Ollama running and open **http://127.0.0.1:8765** in your browser. Use **Analyze → Load example → Analyze logs**, or switch to **Compare** or **Story**.
 
 For a larger model, run `ollama pull gemma3:4b`, then set `GHOST_MODEL=gemma3:4b` in your environment.
 
@@ -43,9 +51,11 @@ Browser (HTML + CSS + JS)
   -> POST /api/interpret
 Python stdlib server (127.0.0.1:8765)
   -> validate input and redact obvious secrets
+  -> Analyze: deterministic error heuristics + numbered source evidence
+  -> Compare: deterministic before/after line diff
   -> JSON-schema prompt + local Ollama /api/generate
-Gemma 3 (open-weight AI) -> title + story + final whisper + echoes
-  -> validate echoes against redacted source
+Gemma 3 (open-weight AI) -> diagnosis and verification steps OR creative story
+  -> model output shown as an unverified hypothesis; evidence comes from source
   -> display via DOM textContent (without executing input)
 ```
 
@@ -58,7 +68,7 @@ python -m unittest discover -s tests -v
 python -m compileall -q app.py ghost_terminal
 ```
 
-19 offline unit/integration tests cover input validation, common secret redaction, local-host restriction, model schema, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
+Offline unit/integration tests cover input validation, deterministic evidence, line differences, common secret redaction, local-host restriction, model schemas, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
 
 ## Optional Google Compute Engine VM deployment
 
@@ -74,7 +84,7 @@ Official contest page: https://dev.to/challenges/hacktoberfest-week4-2026-10-26
 
 ## Privacy and security notes
 
-Logs are in memory while inferred. The app has no cloud fallback, no analytics and no server-side history. Input is untrusted data, not instructions, but prompt injection is still possible. Quotes are checked against source; model output is fiction, **not** an account of real incidents.
+Logs are in memory while inferred. The app has no cloud fallback, no analytics and no server-side history. Input is untrusted data, not instructions, but prompt injection is still possible. Evidence lines are taken directly from sanitized source, but model conclusions are **not verified diagnoses**. Suggested checks require human review and are never executed. The story mode is fiction.
 
 ## License
 
