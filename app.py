@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 from ghost_terminal.core import MODES, prepare_input
 from ghost_terminal.ollama_client import ModelUnavailable, generate_story, model_status
-from ghost_terminal.analysis import extract_evidence, compare_logs
+from ghost_terminal.analysis import extract_evidence, compare_logs, quick_triage
 from ghost_terminal.diagnosis import generate_diagnosis
 
 ROOT = Path(__file__).resolve().parent
@@ -98,7 +98,7 @@ class GhostHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         route = urlsplit(self.path).path
-        if route not in {"/api/interpret", "/api/analyze", "/api/compare"}:
+        if route not in {"/api/interpret", "/api/analyze", "/api/compare", "/api/inspect"}:
             return self._json(404, {"error": "Not found"})
         origin = self.headers.get("Origin")
         if origin:
@@ -126,11 +126,18 @@ class GhostHandler(BaseHTTPRequestHandler):
                 return self._json(400, {"error": "Invalid story mode."})
             clean_log, redactions = prepare_input(payload.get("log"))
             baseline = None
-            if route == "/api/compare":
+            if route == "/api/compare" or (route == "/api/inspect" and "baseline" in payload):
                 baseline, baseline_redactions = prepare_input(payload.get("baseline"))
                 redactions += baseline_redactions
+            ignore_timestamps = payload.get("ignore_timestamps", False)
+            if not isinstance(ignore_timestamps, bool):
+                return self._json(400, {"error": "ignore_timestamps must be boolean."})
         except (ValueError, UnicodeDecodeError, TypeError) as exc:
             return self._json(400, {"error": str(exc) if isinstance(exc, ValueError) else "Invalid JSON."})
+        if route == "/api/inspect":
+            findings = quick_triage(clean_log, baseline=baseline, ignore_timestamps=ignore_timestamps)
+            return self._json(200, {**findings, "redactions": redactions,
+                                    "mode": "compare" if baseline is not None else "analyze"})
         if not _allow_inference():
             return self._json(429, {"error": "Demo is busy. Please retry in about a minute."})
         try:
@@ -139,12 +146,13 @@ class GhostHandler(BaseHTTPRequestHandler):
                 return self._json(200, {"story": story, "redactions": redactions,
                                         "mode": mode, "model": model_status()["model"]})
             signals = extract_evidence(clean_log)
-            diff = compare_logs(baseline, clean_log) if baseline is not None else None
+            diff = (compare_logs(baseline, clean_log, ignore_timestamps=ignore_timestamps)
+                    if baseline is not None else None)
             diagnosis = generate_diagnosis(clean_log, signals, baseline=baseline, changes=diff)
             return self._json(200, {"analysis": diagnosis, "signals": signals,
                                     "diff": diff, "redactions": redactions,
                                     "mode": "compare" if baseline is not None else "analyze",
-                                    "model": model_status()["model"]})
+                                    "engine": "gemma3", "model": model_status()["model"]})
         except ModelUnavailable as exc:
             return self._json(503, {"error": str(exc)})
         except Exception:

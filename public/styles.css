@@ -83,3 +83,23 @@
   .scenario-verification { margin:0 19px 18px; }
   .scenario-picker { padding:12px; }
 }
+
+
+/* Fast triage and report export; reuse the existing dark/violet panels. */
+.compare-option { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:12px; color:#d6cae8; font:11px/1.5 var(--mono); cursor:pointer; }
+.compare-option input { accent-color:#b18af4; width:15px; height:15px; }
+.compare-option span { color:#8d839e; font-size:10px; }
+.quick-scan { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:11px 15px; margin-top:9px; background:#1b182b; border:1px solid #5b4973; border-radius:7px; color:#dfcbf5; font:600 12px var(--mono); transition:background .15s; }
+.quick-scan:hover:not(:disabled) { background:#2b2240; border-color:#8d68ba; }
+.quick-scan:disabled { opacity:.5; cursor:wait; }
+.quick-scan span:last-child { font-size:10px; font-weight:400; color:#a69cba; }
+.engine-indicator { margin-left:auto; color:#bca3da; font:9px var(--mono); letter-spacing:.4px; }
+.report-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.report-actions button { color:#d3b5f5; background:transparent; border:1px solid #645076; padding:9px 12px; border-radius:6px; font:11px var(--mono); }
+.report-actions button:hover { background:#251d3a; }
+@media(max-width:600px) {
+  .analysis-result .result-footer { flex-wrap:wrap; }
+  .report-actions { width:100%; }
+  .report-actions button { flex:1; }
+  .quick-scan span:last-child { font-size:9px; }
+}

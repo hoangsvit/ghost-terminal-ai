@@ -8,6 +8,7 @@ const tabs = Array.from(document.querySelectorAll('.tool-tab'));
 let activeTool = 'analyze';
 
 let loadedScenario = null;
+let lastReport = null;
 
 function selectedScenario() {
   return TEST_SCENARIOS[activeTool].find(s => s.id === $('scenario-select').value);
@@ -79,10 +80,11 @@ function updateCount() {
 }
 function onEdit() {
   updateCount();
-  $('scenario-verification').hidden = true;
+  resetResults();
 }
 input.addEventListener('input', onEdit);
 baseline.addEventListener('input', onEdit);
+$('ignore-timestamps').addEventListener('change', () => { resetResults(); });
 
 $('scenario-select').addEventListener('change', () => {
   loadedScenario = null;
@@ -103,6 +105,7 @@ $('sample-btn').addEventListener('click', () => {
 });
 
 function resetResults() {
+  lastReport = null;
   $('empty-state').hidden = false;
   $('analysis-result').hidden = true;
   $('story-result').hidden = true;
@@ -122,6 +125,7 @@ function setTool(tool) {
   }
   $('baseline-panel').hidden = tool !== 'compare';
   $('story-modes').hidden = tool !== 'story';
+  $('quick-scan-btn').hidden = tool === 'story';
   $('tool-hint').textContent = ({
     analyze: 'Understand a failure, inspect source evidence, and decide what to verify next.',
     compare: 'Compare the previous and current runs to spot changes and new error signals.',
@@ -186,6 +190,10 @@ function putItems(container, entries, kind) {
 }
 
 function showDiagnosis(data) {
+  lastReport = data;
+  const isQuick = data.engine === 'rules';
+  $('engine-indicator').textContent = isQuick ? 'NO AI · INSTANT' : 'GEMMA 3';
+  $('analysis-source-label').textContent = isQuick ? 'RULE-BASED INDICATOR' : 'AI HYPOTHESIS';
   $('empty-state').hidden = true;
   $('story-result').hidden = true;
   $('analysis-result').hidden = false;
@@ -206,13 +214,15 @@ function showDiagnosis(data) {
   $('diff-section').hidden = !data.diff;
   if (data.diff) {
     $('diff-counts').textContent = data.diff.added_count + ' line(s) added · ' +
-      data.diff.removed_count + ' line(s) removed';
+      data.diff.removed_count + ' line(s) removed' +
+      (data.diff.ignore_timestamps ? ' · Timestamp-only changes ignored' : '');
     putItems('diff-added', data.diff.added, 'diff');
     putItems('diff-removed', data.diff.removed, 'diff');
   }
-  $('report-note').textContent = 'Confidence: ' + data.analysis.confidence.toUpperCase() +
+  $('report-note').textContent = 'Source: ' + (isQuick ? 'Deterministic rules' : 'Gemma 3 AI') +
+    ' · Confidence: ' + data.analysis.confidence.toUpperCase() +
     ' · ' + data.analysis.confidence_note +
-    ' This is an AI hypothesis, not a verified incident root cause. Review steps before use.';
+    ' Findings are not a verified root cause. Review every suggested step before use.';
   $('analysis-redactions').textContent = data.redactions
     ? data.redactions + ' sensitive fragment(s) redacted'
     : 'No obvious secrets detected';
@@ -259,11 +269,18 @@ button.addEventListener('click', async () => {
   const selectedTool = activeTool;
   const path = ({analyze:'/api/analyze',compare:'/api/compare',story:'/api/interpret'})[selectedTool];
   const payload = {log:input.value};
-  if (selectedTool === 'compare') payload.baseline = baseline.value;
+  if (selectedTool === 'compare') {
+    payload.baseline = baseline.value;
+    payload.ignore_timestamps = $('ignore-timestamps').checked;
+  }
   if (selectedTool === 'story') payload.mode = document.querySelector('input[name="mode"]:checked').value;
   button.disabled = true;
   $('sample-btn').disabled = true;
   $('scenario-select').disabled = true;
+  $('quick-scan-btn').disabled = true;
+  input.disabled = true;
+  baseline.disabled = true;
+  $('ignore-timestamps').disabled = true;
   $('generate-label').textContent = 'Inspecting the evidence…';
   try {
     const controller = new AbortController();
@@ -289,6 +306,10 @@ button.addEventListener('click', async () => {
     button.disabled = false;
     $('sample-btn').disabled = false;
     $('scenario-select').disabled = false;
+    $('quick-scan-btn').disabled = false;
+    input.disabled = false;
+    baseline.disabled = false;
+    $('ignore-timestamps').disabled = false;
     $('generate-label').textContent = ({
       analyze:'Analyze logs',compare:'Compare runs',story:'Awaken the terminal'
     })[activeTool];
@@ -319,3 +340,109 @@ $('copy-report-btn').addEventListener('click', () => copyText([
   'Verification:\n' + Array.from($('analysis-checks').children).map((e, i) => (i + 1) + '. ' + e.textContent).join('\n'),
   $('report-note').textContent
 ].join('\n\n'), $('copy-report-btn')));
+
+
+// The fast scan is deliberately independent of Ollama and the hosted inference throttle.
+$('quick-scan-btn').addEventListener('click', async () => {
+  $('error-message').hidden = true;
+  if (!input.value.trim()) {
+    error('Paste a log or load a scenario before scanning.');
+    input.focus();
+    return;
+  }
+  if (activeTool === 'compare' && !baseline.value.trim()) {
+    error('Enter a previous log or load a Compare scenario first.');
+    baseline.focus();
+    return;
+  }
+  const tool = activeTool;
+  const payload = {log:input.value};
+  if (tool === 'compare') {
+    payload.baseline = baseline.value;
+    payload.ignore_timestamps = $('ignore-timestamps').checked;
+  }
+  $('quick-scan-btn').disabled = true;
+  button.disabled = true;
+  $('sample-btn').disabled = true;
+  $('scenario-select').disabled = true;
+  input.disabled = true;
+  baseline.disabled = true;
+  $('ignore-timestamps').disabled = true;
+  try {
+    const response = await fetch('/api/inspect', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Quick scan failed.');
+    showDiagnosis(data);
+    verifyLoadedScenario(data, tool);
+  } catch (err) {
+    error(err.message || 'Unable to inspect logs.');
+  } finally {
+    $('quick-scan-btn').disabled = false;
+    button.disabled = false;
+    $('sample-btn').disabled = false;
+    $('scenario-select').disabled = false;
+    input.disabled = false;
+    baseline.disabled = false;
+    $('ignore-timestamps').disabled = false;
+  }
+});
+
+function markdownReport(data) {
+  if (!data || !data.analysis) return '';
+  const d = data.analysis;
+  const result = [
+    '# Ghost Terminal AI — Diagnostic Report',
+    '',
+    '- Tool: ' + (data.mode === 'compare' ? 'Compare Logs' : 'Analyze Logs'),
+    '- Engine: ' + (data.engine === 'rules' ? 'Instant rules (no model)' : 'Gemma 3 AI'),
+    '- Severity: ' + (data.signals?.severity || 'info').toUpperCase(),
+    '- Confidence: ' + d.confidence + ' (not a calibrated probability)',
+    '',
+    '## Summary', d.summary,
+    '',
+    '## Possible cause (unverified)', d.probable_cause,
+    '',
+    '## Evidence from sanitized input'
+  ];
+  const evidence = data.signals?.evidence || [];
+  if (evidence.length) {
+    for (const e of evidence) {
+      // Inline evidence lines remain plain text in a block quote, not executed commands.
+      result.push('- Line ' + e.line + ' [' + e.label + ']: ' + e.text.replaceAll('\n', ' '));
+    }
+  } else result.push('No known error signature detected.');
+  result.push('', '## Suggested checks (review before running)');
+  for (const [i, check] of (d.checks || []).entries()) result.push((i + 1) + '. ' + check);
+  if (data.diff) {
+    result.push('', '## Before / after differences',
+      '- Added: ' + data.diff.added_count,
+      '- Removed: ' + data.diff.removed_count,
+      '- Ignore timestamp-only changes: ' + Boolean(data.diff.ignore_timestamps),
+      '',
+      '### Added lines (current)');
+    for (const line of data.diff.added || []) result.push('- L' + line.line + ': ' + line.text);
+    result.push('', '### Removed lines (previous)');
+    for (const line of data.diff.removed || []) result.push('- L' + line.line + ': ' + line.text);
+  }
+  result.push('', '> This is a debugging aid, not a verified root cause. '
+    + 'Log excerpts were sanitized on the server using best-effort patterns. '
+    + 'Review the report before sharing it.');
+  return result.join('\n');
+}
+
+$('download-report-btn').addEventListener('click', () => {
+  if (!lastReport) return;
+  const markdown = markdownReport(lastReport);
+  const url = URL.createObjectURL(new Blob([markdown], {type:'text/markdown;charset=utf-8'}));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'ghost-terminal-report.md';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+});

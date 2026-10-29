@@ -12,11 +12,15 @@ Created for **Hacktoberfest 2026 • DEV Challenge Week 4: Ghost in the Machine*
 
 **Story:** retain the original Haunting, Remembrance and Mystery creative writing modes. This experiment remains part of the Hacktoberfest theme.
 
-**Important:** the analysis is a *hypothesis*, not an incident root cause proven by AI. Evidence is assembled deterministically from the sanitized input, not AI-invented citations. Compare detects line changes, not necessarily causal changes.
+**Important:** rule-based scans report heuristic matches, while AI conclusions are *hypotheses*, not incident root causes proven by a model. Evidence is assembled deterministically from the sanitized input, not AI-invented citations. Compare detects line changes, not necessarily causal changes.
 
 This is **real AI inference, not a simulated response**. Generation requires a downloaded Gemma model and Ollama running. No hosted AI account or paid API is needed.
 
 ## Features
+
+- **Instant Scan (no AI):** get recognized error signatures, exact source line numbers and cautious, read-only next checks without Ollama, latency or inference quota. Uses a new `POST /api/inspect` endpoint.
+- **Timestamp-aware Compare:** optional “Ignore timestamp-only changes” normalizes common leading timestamps for diff matching, while keeping original log lines in results.
+- **Markdown export:** download a report for issues or incident notes, generated locally in the browser from the sanitized response (no server-side report history).
 
 - **Analyze Logs** with probable causes, severity heuristics, numbered evidence and safe checks
 - **Compare Logs** using an exact server-side line diff and AI interpretation
@@ -38,7 +42,9 @@ ollama pull gemma3:1b
 python app.py
 ```
 
-Keep Ollama running and open **http://127.0.0.1:8765** in your browser. Use **Analyze → Load example → Analyze logs**, or switch to **Compare** or **Story**.
+For **Instant Scan**, Ollama is optional: run `python app.py` and open **http://127.0.0.1:8765**. Choose a scenario and click **Instant Scan**. It works without model inference; logs are still sent to whichever server is hosting the site.
+
+For **AI Analyze**, **AI Compare**, and **Story**, keep Ollama running and use **Analyze logs**, **Compare runs**, or **Awaken the terminal**. For before/after comparison, check **Ignore timestamp-only changes** to avoid noise from changing clock values.
 
 For a larger model, run `ollama pull gemma3:4b`, then set `GHOST_MODEL=gemma3:4b` in your environment.
 
@@ -48,7 +54,7 @@ The first model generation may be slow. Only the model download requires interne
 
 ```text
 Browser (HTML + CSS + JS)
-  -> POST /api/interpret
+  -> POST /api/inspect (deterministic Instant Scan) or /api/analyze, /api/compare, /api/interpret
 Python stdlib server (127.0.0.1:8765)
   -> validate input and redact obvious secrets
   -> Analyze: deterministic error heuristics + numbered source evidence
@@ -59,7 +65,7 @@ Gemma 3 (open-weight AI) -> diagnosis and verification steps OR creative story
   -> display via DOM textContent (without executing input)
 ```
 
-The local server never executes input logs, sends analytics, or persists the provided content. Redaction is **best effort**, not guaranteed; avoid pasting sensitive information.
+The server never executes input logs, sends analytics, or persists the provided content. In a hosted VM demo, pasted log text travels to the VM; redaction currently occurs on the server before inference, **not before transmission**. Redaction is **best effort**, not guaranteed; avoid pasting sensitive information.
 
 ## Testing
 
