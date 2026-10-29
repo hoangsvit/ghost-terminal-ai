@@ -14,5 +14,9 @@ jobs:
           python-version: '3.12'
       - name: Unit and integration tests (offline; mock Ollama)
         run: python -m unittest discover -s tests -v
+      - name: Validate VM deployment scripts
+        run: |
+          bash -n vm/deploy.sh
+          bash -n vm/startup.sh
       - name: Compile all Python source files
         run: python -m compileall -q app.py ghost_terminal

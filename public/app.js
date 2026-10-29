@@ -26,7 +26,9 @@ async function health() {
   try {
     const r = await fetch('/api/health');
     const d = await r.json();
-    $('model-status').textContent = d.ready ? 'LOCAL MODEL READY' : d.message;
+    $('model-status').textContent = d.ready
+      ? (d.deployment === 'vm' ? 'CLOUD GEMMA 3 READY' : 'LOCAL MODEL READY')
+      : d.message;
     $('status-dot').className = d.ready ? 'ready' : 'offline';
   } catch (_) {
     $('model-status').textContent = 'LOCAL SERVER OFFLINE';
@@ -65,7 +67,7 @@ button.addEventListener('click', async () => {
   button.querySelector('span:nth-child(2)').textContent = 'Listening between the lines…';
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 125000);
+    const timeout = setTimeout(() => controller.abort(), 270000);
     let response;
     try {
       response = await fetch('/api/interpret', {
