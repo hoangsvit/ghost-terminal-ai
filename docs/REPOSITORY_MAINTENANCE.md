@@ -49,6 +49,7 @@ The YAML/files in this PR **cannot** enforce repository settings by themselves. 
 - **Settings → General:** Issues enabled; wiki/discussions optional only if someone will maintain them.
 - **Settings → Branches / Rulesets:** protect `main`, require relevant CI (currently job named `test` in workflow `Python CI`), block force pushes, require reviewed PRs and up-to-date checks as appropriate for contributor capacity. Do not grant bypass broadly.
 - **Settings → Actions → General:** use least-privilege token permissions and avoid untrusted PR code with write credentials.
+- **CI events:** run automatically for PRs and `main` pushes; contributors can request a manual `workflow_dispatch` run from the Actions tab. PR updates cancel outdated runs to reduce CI duplication.
 - **Security / Advanced Security:** consider enabling private vulnerability reporting, dependency alerts, and supported scanning features. `SECURITY.md` by itself does not enable private reporting.
 - **Maintain proper ownership:** no CODEOWNERS is added yet because reviewer assignments need the repository owner's approval.
 
