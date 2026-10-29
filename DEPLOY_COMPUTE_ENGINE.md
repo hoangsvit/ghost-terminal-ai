@@ -113,3 +113,28 @@ References:
 - https://docs.cloud.google.com/compute/docs/instances/startup-scripts/linux
 - https://docs.cloud.google.com/organization-policy/restrict-locations
 - https://packages.ubuntu.com/noble/caddy
+
+## Fast updates for an existing VM
+
+Once the VM exists, **do not rerun the VM creation script to update code**. In Google Cloud Shell:
+
+```bash
+bash vm/update.sh --ref main
+```
+
+Preview an unmerged PR branch without merging it:
+
+```bash
+bash vm/update.sh --ref feature/instant-log-triage-reports
+```
+
+Check service/model health with `bash vm/update.sh --status` and revert to the previous deployed commit with `bash vm/update.sh --rollback`. Project and VM zone are detected automatically. Override with `--project PROJECT_ID --zone ZONE` when necessary.
+
+For Cloud Shell without a repository checkout, download the script from the branch you plan to test, review it, then run it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/feature/instant-log-triage-reports/vm/update.sh -o /tmp/ghost-update.sh
+bash /tmp/ghost-update.sh --ref feature/instant-log-triage-reports
+```
+
+**Safety:** This script never creates a VM, reinstalls Ollama/model weights, or modifies Caddy/firewall rules. It refuses to overwrite uncommitted changes and checks `/api/health` after updating. Failed updates trigger an automatic attempt to restore the previous commit. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.

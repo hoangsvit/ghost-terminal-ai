@@ -54,10 +54,32 @@ def extract_evidence(log: str, limit: int = 8) -> dict[str, Any]:
     }
 
 
-def compare_logs(before: str, after: str, limit: int = 12) -> dict[str, Any]:
-    """Exact line-based diff with source line numbers, bounded for small models."""
+# Timestamp-only differences are typically irrelevant in before/after deployment comparisons.
+# Preserve all original text/line numbers when reporting concrete changes.
+_TIMESTAMP_PREFIXES = (
+    re.compile(r"^\[\d{2}:\d{2}:\d{2}(?:[.,]\d+)?\]\s*"),
+    re.compile(r"^\[\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?\]\s*"),
+    re.compile(r"^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?\s+"),
+)
+
+
+def _comparison_key(line: str, ignore_timestamps: bool) -> str:
+    if not ignore_timestamps:
+        return line
+    for pattern in _TIMESTAMP_PREFIXES:
+        replaced = pattern.sub("", line, count=1)
+        if replaced != line:
+            return replaced
+    return line
+
+
+def compare_logs(before: str, after: str, limit: int = 12, *,
+                 ignore_timestamps: bool = False) -> dict[str, Any]:
+    """Exact or timestamp-normalized diff, always showing original source line numbers."""
     a, b = before.splitlines(), after.splitlines()
-    matcher = SequenceMatcher(a=a, b=b, autojunk=False)
+    a_keys = [_comparison_key(x, ignore_timestamps) for x in a]
+    b_keys = [_comparison_key(x, ignore_timestamps) for x in b]
+    matcher = SequenceMatcher(a=a_keys, b=b_keys, autojunk=False)
     added, removed = [], []
     count_added = count_removed = 0
     for operation, a1, a2, b1, b2 in matcher.get_opcodes():
@@ -76,12 +98,110 @@ def compare_logs(before: str, after: str, limit: int = 12) -> dict[str, Any]:
     for item in added:
         signal = existing.get(item["line"])
         if signal is not None:
-            introduced.append({**item, "label": signal["label"], "severity": signal["severity"]})
+            introduced.append({**item, "label": signal["label"], "severity": signal["severity"], "type": signal["type"]})
     return {
         "added_count": count_added,
         "removed_count": count_removed,
         "added": added,
         "removed": removed,
         "new_error_signals": introduced,
-        "note": "Diff compares lines, not deployment causality. Confirm suspected regressions independently.",
+        "ignore_timestamps": ignore_timestamps,
+        "note": (
+            "Line differences ignore common leading timestamp formats; original line text retained. "
+            "A change is not proof of causality." if ignore_timestamps
+            else "Diff compares lines, not deployment causality. Confirm suspected regressions independently."
+        ),
+    }
+
+
+# Conservative, read-only checks for a useful fast response when Gemma is unavailable.
+# Do not turn model suggestions into executed commands.
+_TRIAGE_CHECKS = {
+    "resource": [
+        "Inspect available disk space and inode usage for the affected filesystem.",
+        "Identify which build artifacts or logs are consuming space.",
+    ],
+    "memory": [
+        "Inspect process/container memory usage and OOM kill events.",
+        "Compare memory limits and peak consumption around the failure.",
+    ],
+    "network": [
+        "Confirm the destination host, port, and expected listening process.",
+        "Inspect service status and recent connection errors.",
+    ],
+    "permission": [
+        "Check the owner and permissions of the affected file or service.",
+        "Compare the executing account with the required access policy.",
+    ],
+    "authentication": [
+        "Confirm the configured identity, permissions, and token expiry without printing secrets.",
+        "Check recent access-denied events and the target service policy.",
+    ],
+    "dependency": [
+        "Confirm the dependency appears in the project manifest or lockfile.",
+        "Compare the deployed environment and package installation output.",
+    ],
+    "deployment": [
+        "Inspect the project organization policies and permitted deployment locations.",
+        "Compare the target region with supported service regions.",
+    ],
+    "runtime": [
+        "Read the full exception and stack trace immediately before the failure.",
+        "Check recent code and environment changes related to the failing function.",
+    ],
+    "build": [
+        "Inspect the first failing build step and its complete error output.",
+        "Compare dependency versions and build environment with the last successful run.",
+    ],
+    "http": [
+        "Inspect upstream application and proxy logs near the failed request.",
+        "Check upstream health and recent deployments without exposing request secrets.",
+    ],
+    "generic": [
+        "Inspect the log lines directly before and after the reported error.",
+        "Check service state and the latest deployment changes.",
+    ],
+}
+
+
+def quick_triage(log: str, *, baseline: str | None = None,
+                 ignore_timestamps: bool = False) -> dict[str, Any]:
+    """Rule-only findings without Ollama, remote calls or speculative AI analysis."""
+    signals = extract_evidence(log)
+    diff = (compare_logs(baseline, log, ignore_timestamps=ignore_timestamps)
+            if baseline is not None else None)
+    evidence = signals["evidence"]
+    introduced = diff["new_error_signals"] if diff else []
+    focus = introduced[0] if introduced else (evidence[0] if evidence else None)
+    if focus:
+        label = focus["label"]
+        summary = (f"{signals['signals_found']} known error signal(s) in the current log. "
+                   f"First prioritized match: {label} on line {focus['line']}.")
+        probable_cause = (f"The input contains a pattern classified as '{label}'. "
+                          "This is an indicator, not a confirmed root cause. Check its surrounding context.")
+        checks = list(_TRIAGE_CHECKS.get(focus["type"], _TRIAGE_CHECKS["generic"]))
+    else:
+        summary = "No known error signature was detected in the supplied log."
+        probable_cause = ("The root cause cannot be inferred from this sample. "
+                          "Absence of known patterns does not prove a successful or healthy run.")
+        checks = [
+            "Collect the full failure context and relevant service logs.",
+            "Check the application health and compare against a known-good execution.",
+        ]
+    if diff is not None:
+        summary += (f" Compared with the previous run: {diff['added_count']} line(s) added, "
+                    f"{diff['removed_count']} removed.")
+        if diff["added_count"] == 0 and diff["removed_count"] == 0:
+            summary += " No meaningful differences were found under the chosen comparison setting."
+    return {
+        "analysis": {
+            "summary": summary,
+            "probable_cause": probable_cause,
+            "checks": checks,
+            "confidence": "rule-based",
+            "confidence_note": "Instant heuristic scan; no AI model was called.",
+        },
+        "signals": signals,
+        "diff": diff,
+        "engine": "rules",
     }

@@ -61,6 +61,7 @@
               <textarea id="baseline-input" maxlength="6000" spellcheck="false" placeholder="[23:55:00] Server listening on port 3000&#10;[23:55:02] Health check passed"></textarea>
               <div class="editor-foot"><span>Previous run for line-by-line comparison</span><span id="baseline-count">0 / 6000</span></div>
             </div>
+            <label class="compare-option"><input id="ignore-timestamps" type="checkbox" checked> Ignore timestamp-only changes <span>Keep original source lines</span></label>
           </div>
           <fieldset class="modes" id="story-modes" hidden><legend>CHOOSE A FREQUENCY</legend><div class="mode-grid">
             <label class="mode"><input type="radio" name="mode" value="haunting" checked><span class="mode-title">☾ Haunting</span><small>Beautifully eerie</small></label>
@@ -68,6 +69,7 @@
             <label class="mode"><input type="radio" name="mode" value="mystery"><span class="mode-title">◇ Mystery</span><small>Follow the clues</small></label>
           </div></fieldset>
           <button class="generate" id="generate-btn" type="button"><span class="generate-icon">✧</span><span id="generate-label">Analyze logs</span><span class="generate-arrow">↗</span></button>
+          <button class="quick-scan" id="quick-scan-btn" type="button"><span>⌁ Instant Scan</span><span>No AI · No model call</span></button>
           <p class="input-note">Input is redacted locally before inference. Everything stays on your machine; no logs are saved.</p>
         </article>
         <article class="panel output-panel" aria-live="polite" aria-atomic="false">
@@ -81,12 +83,12 @@
               <div class="signal-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
             </div>
             <div class="analysis-result" id="analysis-result" hidden>
-              <div class="transmission-meta">INCIDENT REPORT <span id="analysis-mode"></span></div>
+              <div class="transmission-meta">INCIDENT REPORT <span id="analysis-mode"></span><span class="engine-indicator" id="engine-indicator"></span></div>
               <div class="finding-summary">
                 <div class="finding-head"><h3 id="analysis-title">Diagnostic report</h3><span class="severity-chip" id="severity-chip">CHECK</span></div>
                 <p id="analysis-summary"></p>
               </div>
-              <div class="report-section"><h4>◈ PROBABLE CAUSE <span class="report-subtitle">AI HYPOTHESIS</span></h4><p id="analysis-cause"></p></div>
+              <div class="report-section"><h4>◈ PROBABLE CAUSE <span class="report-subtitle" id="analysis-source-label">AI HYPOTHESIS</span></h4><p id="analysis-cause"></p></div>
               <div class="report-section"><h4>⌁ EVIDENCE FROM LOG <span class="report-subtitle" id="signals-count"></span></h4><div id="evidence-list" class="evidence-list"></div></div>
               <div class="report-section"><h4>✓ SUGGESTED VERIFICATION</h4><ol id="analysis-checks" class="check-list"></ol></div>
               <div class="report-section" id="diff-section" hidden>
@@ -95,7 +97,7 @@
                 <div class="diff-grid"><div><strong>+ Current</strong><div id="diff-added"></div></div><div><strong>− Previous</strong><div id="diff-removed"></div></div></div>
               </div>
               <div class="report-note" id="report-note"></div>
-              <div class="result-footer"><span id="analysis-redactions"></span><button type="button" id="copy-report-btn">⧉ Copy report</button></div>
+              <div class="result-footer"><span id="analysis-redactions"></span><div class="report-actions"><button type="button" id="copy-report-btn">⧉ Copy report</button><button type="button" id="download-report-btn">↓ Markdown</button></div></div>
             </div>
             <div class="story-result" id="story-result" hidden>
               <div class="transmission-meta">RECEIVED TRANSMISSION <span id="story-mode"></span></div>
