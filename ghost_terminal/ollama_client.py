@@ -70,7 +70,8 @@ def generate_story(log: str, mode: str) -> dict:
         "options": {"temperature": 0.75, "num_predict": 550},
         "keep_alive": "5m",
     }
-    answer = _request("/api/generate", payload, timeout=110)
+    timeout = max(10, min(270, int(os.environ.get("GHOST_INFERENCE_TIMEOUT", "110"))))
+    answer = _request("/api/generate", payload, timeout=timeout)
     try:
         story = json.loads(answer["response"])
     except (KeyError, TypeError, ValueError) as exc:

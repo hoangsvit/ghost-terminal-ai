@@ -60,6 +60,10 @@ python -m compileall -q app.py ghost_terminal
 
 19 offline unit/integration tests cover input validation, common secret redaction, local-host restriction, model schema, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
 
+## Google Cloud Run hosted demo (optional)
+
+The [Google Cloud Run deployment guide](DEPLOY_GOOGLE_CLOUD.md) packages the **same Gemma 3 1B model + Ollama** into a CPU-only container. Image build downloads the model exactly once. A public hosted demo **sends input to your Google Cloud service**; never paste sensitive logs. The original `python app.py` local workflow remains unchanged.
+
 ## Demo and contest
 
 For the DEV Week 4 challenge, record a **real Gemma 3 generation demo** (video or screen recording). A UI mockup alone is not enough to demonstrate model inference.

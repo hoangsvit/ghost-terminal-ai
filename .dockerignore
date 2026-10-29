@@ -1,0 +1,17 @@
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+demo/
+*.zip
+.env
+.env.*
+.gitignore
+DEVTO_SUBMISSION.md
+FINAL_SUBMISSION_CHECKLIST.md
+DEPLOY_GOOGLE_CLOUD.md
+README.md
+LICENSE
