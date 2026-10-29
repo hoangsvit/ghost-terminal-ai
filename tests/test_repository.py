@@ -72,8 +72,8 @@ class RepositoryHealthTests(unittest.TestCase):
         deploy = (ROOT / "vm" / "deploy.sh").read_text()
         startup = (ROOT / "vm" / "startup.sh").read_text()
         guide = (ROOT / "DEPLOY_COMPUTE_ENGINE.md").read_text()
-        self.assertIn("/main/vm/startup.sh", deploy)
-        self.assertIn("git clone --depth=1 --branch=main", startup)
+        self.assertIn('$REF/vm/startup.sh', deploy)
+        self.assertIn('git clone --depth=1 --branch="$REPO_REF"', startup)
         self.assertIn("vm/update.sh", guide)
         for source in (deploy, startup, guide):
             self.assertNotIn("feature/compute-engine-vm-gemma3", source)
