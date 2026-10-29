@@ -1,0 +1,33 @@
+name: "Question / setup help"
+description: "Ask a non-security question about setup, behavior or supported environments."
+title: "[Question] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search existing issues and read README.md and SUPPORT.md first.
+        Never include real production logs or secrets in a public question.
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Where are you running Ghost Terminal AI?
+      options:
+        - Local computer
+        - Google Compute Engine VM
+        - Trying to set up
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you already tried?
+      description: Include non-sensitive commands and synthetic error messages.
+    validations:
+      required: true

@@ -1,6 +1,6 @@
 # Deploy Ghost Terminal AI to Google Compute Engine VM
 
-This deployment is for a **public Hacktoberfest demo**, running the original **Gemma 3 1B through Ollama**. It uses Ubuntu 24.04, the repository's Python server, systemd and Caddy (HTTPS reverse proxy). **No Cloud Run, Cloud Build, Firebase, Vertex AI, or GitHub-to-GCP integration** is needed.
+This deployment is for a **public demonstration**, running **Gemma 3 1B through Ollama**. It uses Ubuntu 24.04, the repository's Python server, systemd and Caddy (HTTPS reverse proxy). **No Cloud Run, Cloud Build, Firebase, Vertex AI, or GitHub-to-GCP integration** is needed.
 
 > Hosted mode is **not local to the visitor's device**. Input travels to the Compute Engine VM for inference. Never paste credentials or private logs. Input redaction is best effort. Caddy uses an external `sslip.io` DNS name; this is a third-party domain service, not an official Google Cloud domain.
 
@@ -16,11 +16,11 @@ Only **ports 80 and 443** are opened through a firewall rule restricted by VM ne
 
 ## Option A: one-script deploy via Cloud Shell
 
-Select the intended GCP project first. Check billing; Compute Engine, its disk and public IPv4 address **can incur charges even when the demo is idle**. The Qwiklabs project `qwiklabs-gcp-01-890e70d6b3c7` is temporary and resource creation can be prohibited by Organization Policy.
+Select the intended GCP project first. Check billing; Compute Engine, its disk and public IPv4 address **can incur charges even when the demo is idle**. Qwiklabs projects are temporary and resource creation can be prohibited by Organization Policy.
 
 ```bash
 gcloud config get-value project
-git clone --branch feature/compute-engine-vm-gemma3 --single-branch \
+git clone --branch main --single-branch \
   https://github.com/hoangsvit/ghost-terminal-ai.git ghost-terminal-vm
 cd ghost-terminal-vm
 bash vm/deploy.sh
@@ -81,7 +81,7 @@ If SSH is disallowed by Qwiklabs, view the serial console output in Compute Engi
 
 1. Open the actual VM HTTPS URL and confirm the app loads without a TLS warning.
 2. The indicator must show **CLOUD GEMMA 3 READY** (this checks the locally running Ollama model).
-3. Click **Load sample log**, then **Awaken the terminal**.
+3. Under **Story**, choose a synthetic test scenario, click **Load scenario**, then **Awaken the terminal**.
 4. Confirm you received a **new generated story**; switch modes and generate again.
 5. Record the website and result for the DEV.to challenge.
 
@@ -125,7 +125,7 @@ bash vm/update.sh --ref main
 Preview an unmerged PR branch without merging it:
 
 ```bash
-bash vm/update.sh --ref feature/instant-log-triage-reports
+bash vm/update.sh --ref feature/my-reviewed-change
 ```
 
 Check service/model health with `bash vm/update.sh --status` and revert to the previous deployed commit with `bash vm/update.sh --rollback`. Project and VM zone are detected automatically. Override with `--project PROJECT_ID --zone ZONE` when necessary.
@@ -133,8 +133,8 @@ Check service/model health with `bash vm/update.sh --status` and revert to the p
 For Cloud Shell without a repository checkout, download the script from the branch you plan to test, review it, then run it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/feature/instant-log-triage-reports/vm/update.sh -o /tmp/ghost-update.sh
-bash /tmp/ghost-update.sh --ref feature/instant-log-triage-reports
+curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm/update.sh -o /tmp/ghost-update.sh
+bash /tmp/ghost-update.sh --ref main
 ```
 
 **Safety:** This script never creates a VM, reinstalls Ollama/model weights, or modifies Caddy/firewall rules. It refuses to overwrite uncommitted changes and checks `/api/health` after updating. Failed updates trigger an automatic attempt to restore the previous commit. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.

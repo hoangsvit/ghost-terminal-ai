@@ -22,6 +22,8 @@ jobs:
           bash vm/update.sh --help >/dev/null
       - name: Syntax check browser JavaScript
         run: node --check public/app.js
+      - name: Syntax check scenario JavaScript
+        run: node --check public/scenarios.js
       - name: Validate website scenario catalog
         run: node --test tests/test_scenarios.cjs
       - name: Compile all Python source files

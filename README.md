@@ -1,8 +1,27 @@
 # 👻 Ghost Terminal AI
 
+[![CI](https://github.com/hoangsvit/ghost-terminal-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/hoangsvit/ghost-terminal-ai/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+
 **Find the ghost in your logs.** Open-weight **Gemma 3** via **Ollama** now explains software failures, compares CI/deployment logs, and optionally turns terminal history into fiction. Works locally or on a user-hosted Compute Engine VM.
 
 Created for **Hacktoberfest 2026 • DEV Challenge Week 4: Ghost in the Machine** (Oct 26–31, 2026).
+
+## Community and contributions
+
+Ghost Terminal AI is open source under the **[MIT License](LICENSE)**. Contributions, bug reports, questions and improvement proposals are welcome.
+
+- **Start contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, test commands, code standards and PR process.
+- **Create an issue:** [Bug / Feature / Docs / Question](https://github.com/hoangsvit/ghost-terminal-ai/issues/new/choose) — structured templates and synthetic examples.
+- **Submit code:** [Pull requests](https://github.com/hoangsvit/ghost-terminal-ai/pulls) — fork, work on a branch, run checks and open a PR targeting `main`.
+- **Community behavior:** [Code of Conduct](CODE_OF_CONDUCT.md).
+- **Report vulnerabilities privately:** [SECURITY.md](SECURITY.md) — never publish exploits or real secrets in issues.
+- **Get help:** [SUPPORT.md](SUPPORT.md).
+- **Maintainer workflow:** [Repository maintenance guide](docs/REPOSITORY_MAINTENANCE.md).
+- **Change history:** [CHANGELOG.md](CHANGELOG.md).
+
+No public demo or CI run should be treated as proof that AI output is a verified technical diagnosis. Never share private production logs or credentials.
 
 ## What does it do?
 
@@ -74,6 +93,8 @@ python -m unittest discover -s tests -v
 python -m compileall -q app.py ghost_terminal
 ```
 
+For contributing and repository health checks (Python, Node and VM scripts), see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 Offline unit/integration tests cover input validation, deterministic evidence, line differences, common secret redaction, local-host restriction, model schemas, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
 
 ## Fast updates for an existing VM
@@ -87,7 +108,7 @@ bash vm/update.sh --ref main
 Preview an unmerged PR branch without merging it:
 
 ```bash
-bash vm/update.sh --ref feature/instant-log-triage-reports
+bash vm/update.sh --ref feature/my-reviewed-change
 ```
 
 Check service/model health with `bash vm/update.sh --status` and revert to the previous deployed commit with `bash vm/update.sh --rollback`. Project and VM zone are detected automatically. Override with `--project PROJECT_ID --zone ZONE` when necessary.
@@ -95,8 +116,8 @@ Check service/model health with `bash vm/update.sh --status` and revert to the p
 For Cloud Shell without a repository checkout, download the script from the branch you plan to test, review it, then run it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/feature/instant-log-triage-reports/vm/update.sh -o /tmp/ghost-update.sh
-bash /tmp/ghost-update.sh --ref feature/instant-log-triage-reports
+curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm/update.sh -o /tmp/ghost-update.sh
+bash /tmp/ghost-update.sh --ref main
 ```
 
 **Safety:** This script never creates a VM, reinstalls Ollama/model weights, or modifies Caddy/firewall rules. It refuses to overwrite uncommitted changes and checks `/api/health` after updating. Failed updates trigger an automatic attempt to restore the previous commit. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.

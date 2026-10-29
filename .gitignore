@@ -6,3 +6,10 @@ __pycache__/
 .DS_Store
 *.log
 !examples/*.log
+.env.*
+!.env.example
+.coverage
+coverage/
+.ruff_cache/
+.idea/
+*.sqlite3

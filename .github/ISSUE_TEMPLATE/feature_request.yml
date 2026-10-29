@@ -1,0 +1,58 @@
+name: "Feature request"
+description: "Suggest a practical improvement with a clear problem and acceptance criteria."
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe a real user problem before proposing an implementation.
+        For large or breaking changes, discuss scope here before writing code.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who is affected and what is currently difficult?
+      placeholder: "As a developer analyzing CI logs, I need ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the desired outcome, not just a UI button.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      description: Specific, verifiable outcomes and failure behavior.
+      placeholder: "- [ ] When ...\n- [ ] If the model is unavailable ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: focus
+    attributes:
+      label: Primary area
+      options:
+        - Detection / accuracy
+        - Compare / timeline
+        - Privacy / security
+        - Accessibility / UI
+        - Deployment / CI
+        - Community / documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternative
+    attributes:
+      label: Alternatives and trade-offs (optional)
+      description: Mention privacy, cost, and dependency implications.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: This request does not disclose secrets, private logs, or unpatched vulnerabilities.
+          required: true
