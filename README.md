@@ -76,6 +76,31 @@ python -m compileall -q app.py ghost_terminal
 
 Offline unit/integration tests cover input validation, deterministic evidence, line differences, common secret redaction, local-host restriction, model schemas, HTTP handling and fake-model end-to-end behavior. These tests do **not** verify model quality or the performance of a live Ollama instance.
 
+## Fast updates for an existing VM
+
+Once the VM exists, **do not rerun the VM creation script to update code**. In Google Cloud Shell:
+
+```bash
+bash vm/update.sh --ref main
+```
+
+Preview an unmerged PR branch without merging it:
+
+```bash
+bash vm/update.sh --ref feature/instant-log-triage-reports
+```
+
+Check service/model health with `bash vm/update.sh --status` and revert to the previous deployed commit with `bash vm/update.sh --rollback`. Project and VM zone are detected automatically. Override with `--project PROJECT_ID --zone ZONE` when necessary.
+
+For Cloud Shell without a repository checkout, download the script from the branch you plan to test, review it, then run it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/feature/instant-log-triage-reports/vm/update.sh -o /tmp/ghost-update.sh
+bash /tmp/ghost-update.sh --ref feature/instant-log-triage-reports
+```
+
+**Safety:** This script never creates a VM, reinstalls Ollama/model weights, or modifies Caddy/firewall rules. It refuses to overwrite uncommitted changes and checks `/api/health` after updating. Failed updates trigger an automatic attempt to restore the previous commit. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.
+
 ## Optional Google Compute Engine VM deployment
 
 The [Compute Engine VM guide](DEPLOY_COMPUTE_ENGINE.md) packages **the same Gemma 3 + Ollama** on an Ubuntu VM with automatic HTTPS. No Cloud Run or paid AI API is needed. Hosted input reaches your Google Cloud VM; avoid real private logs. The original local app is unchanged.
