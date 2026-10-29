@@ -4,9 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#090b14">
-  <meta name="description" content="Ghost Terminal AI turns your forgotten terminal history into haunting fiction with local, open-weight Gemma 3.">
-  <title>Ghost Terminal AI — Every log leaves a haunting</title>
+  <meta name="description" content="Ghost Terminal AI diagnoses errors, compares deployment logs, and creates stories with open-weight Gemma 3.">
+  <title>Ghost Terminal AI — Find the ghost in your logs</title>
   <link rel="stylesheet" href="/styles.css">
+  <script src="/scenarios.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -23,8 +24,8 @@
     <main>
       <section class="hero" aria-labelledby="hero-title">
         <div class="eyebrow"><span class="eyebrow-icon">✦</span> AN EXPERIMENT IN LOCAL AI &amp; DIGITAL MEMORY</div>
-        <h1 id="hero-title">Every log leaves<br><em>a haunting<span>.</span></em></h1>
-        <p>Some commands fail. Some processes disappear. Feed your forgotten terminal echoes to a local AI and see what stories still live between the lines.</p>
+        <h1 id="hero-title">Find the ghost<br><em>in your logs<span>.</span></em></h1>
+        <p>Some commands fail. Some deployments disappear. Ask a local AI to explain the clues, compare runs, and help you investigate safely.</p>
         <div class="hero-chips" aria-label="Privacy and technology features">
           <span><b aria-hidden="true">◈</b> 100% LOCAL</span><span><b aria-hidden="true">✧</b> GEMMA 3</span><span><b aria-hidden="true">⌁</b> NO CLOUD API</span>
         </div>
@@ -32,34 +33,69 @@
       </section>
       <section class="workspace" aria-label="Story studio">
         <article class="panel input-panel">
-          <div class="panel-head"><div><span class="section-number">01 / INPUT</span><h2>Summon an echo</h2></div><span class="panel-symbol">⌘_</span></div>
-          <p class="panel-desc">Paste a command history, Git log, or error trace. The model never executes your commands.</p>
-          <div class="field-label"><label for="log-input">TERMINAL ARTIFACT</label><button class="text-button" id="sample-btn" type="button">↗ Load sample log</button></div>
-          <div class="editor"><div class="editor-head"><span class="window-dots"><i></i><i></i><i></i></span><span>~/forgotten-commands.log</span><span>UTF-8</span></div>
-            <textarea id="log-input" spellcheck="false" maxlength="6000" aria-describedby="input-help" placeholder="$ git log --oneline -6
-f30c1ed fix: a ghost in the deployment
-43a20bb chore: remove forgotten feature
-$ npm run build
-ERROR: missing environment variable..."></textarea>
+          <div class="panel-head"><div><span class="section-number">01 / WORKSPACE</span><h2>Inspect an incident</h2></div><span class="panel-symbol">⌘_</span></div>
+          <p class="panel-desc">Paste build output, a stack trace, or CI logs. Get a hypothesis, line evidence and safe checks. The app never executes your commands.</p>
+          <div class="tool-tabs" role="group" aria-label="Choose tool">
+            <button type="button" class="tool-tab active" data-tool="analyze" aria-pressed="true">⌁ Analyze</button>
+            <button type="button" class="tool-tab" data-tool="compare" aria-pressed="false">⇄ Compare</button>
+            <button type="button" class="tool-tab" data-tool="story" aria-pressed="false">✦ Story</button>
+          </div>
+          <p class="tool-hint" id="tool-hint">Understand a failure, inspect source evidence, and decide what to verify next.</p>
+          <div class="scenario-picker">
+            <div class="scenario-header"><span>⌁ TEST SCENARIOS</span><span id="scenario-count">8 examples</span></div>
+            <div class="scenario-controls">
+              <select id="scenario-select" aria-label="Choose test scenario" aria-describedby="scenario-expected"></select>
+              <button class="scenario-load" id="sample-btn" type="button">↗ Load scenario</button>
+            </div>
+            <p id="scenario-description" class="scenario-description"></p>
+            <p id="scenario-expected" class="scenario-expected"></p>
+          </div>
+          <div class="field-label"><label for="log-input" id="current-label">ERROR / DEPLOYMENT LOG</label></div>
+          <div class="editor"><div class="editor-head"><span class="window-dots"><i></i><i></i><i></i></span><span id="editor-filename">~/deployment.log</span><span>UTF-8</span></div>
+            <textarea id="log-input" spellcheck="false" maxlength="6000" aria-describedby="input-help" placeholder="[23:58:11] Starting deployment&#10;Error: listen EADDRINUSE: address already in use :::3000&#10;Process exited with code 1"></textarea>
             <div class="editor-foot"><span id="input-help">Never paste private secrets or sensitive personal data.</span><span id="char-count">0 / 6000</span></div>
           </div>
-          <fieldset class="modes"><legend>CHOOSE A FREQUENCY</legend><div class="mode-grid">
+          <div id="baseline-panel" class="baseline-panel" hidden>
+            <div class="field-label"><label for="baseline-input">BASELINE / PREVIOUS LOG</label><span class="helper">Before deploy</span></div>
+            <div class="editor"><div class="editor-head"><span class="window-dots"><i></i><i></i><i></i></span><span>~/previous-deploy.log</span><span>UTF-8</span></div>
+              <textarea id="baseline-input" maxlength="6000" spellcheck="false" placeholder="[23:55:00] Server listening on port 3000&#10;[23:55:02] Health check passed"></textarea>
+              <div class="editor-foot"><span>Previous run for line-by-line comparison</span><span id="baseline-count">0 / 6000</span></div>
+            </div>
+          </div>
+          <fieldset class="modes" id="story-modes" hidden><legend>CHOOSE A FREQUENCY</legend><div class="mode-grid">
             <label class="mode"><input type="radio" name="mode" value="haunting" checked><span class="mode-title">☾ Haunting</span><small>Beautifully eerie</small></label>
             <label class="mode"><input type="radio" name="mode" value="memory"><span class="mode-title">✺ Remembrance</span><small>Quiet &amp; human</small></label>
             <label class="mode"><input type="radio" name="mode" value="mystery"><span class="mode-title">◇ Mystery</span><small>Follow the clues</small></label>
           </div></fieldset>
-          <button class="generate" id="generate-btn" type="button"><span class="generate-icon">✧</span><span>Awaken the terminal</span><span class="generate-arrow">↗</span></button>
+          <button class="generate" id="generate-btn" type="button"><span class="generate-icon">✧</span><span id="generate-label">Analyze logs</span><span class="generate-arrow">↗</span></button>
           <p class="input-note">Input is redacted locally before inference. Everything stays on your machine; no logs are saved.</p>
         </article>
         <article class="panel output-panel" aria-live="polite" aria-atomic="false">
-          <div class="panel-head"><div><span class="section-number">02 / TRANSMISSION</span><h2>The other side</h2></div><span class="live-status"><i id="status-dot"></i><span id="model-status">Checking local model…</span></span></div>
+          <div class="panel-head"><div><span class="section-number">02 / FINDINGS</span><h2>Investigation report</h2></div><span class="live-status"><i id="status-dot"></i><span id="model-status">Checking local model…</span></span></div>
           <div class="story-stage" id="story-stage">
             <div class="empty-state" id="empty-state">
               <div class="sigil" aria-hidden="true"><span class="sigil-middle">✺</span><span class="sigil-outer"></span></div>
               <span class="waiting-label">[ NO SIGNAL DETECTED ]</span>
-              <h3>The ghosts are<br>still sleeping.</h3>
-              <p>Your generated story will materialize here once Gemma starts listening.</p>
+              <h3>The clues are<br>waiting.</h3>
+              <p>Your analysis will appear here. Start with a sample failure or your own sanitized logs.</p>
               <div class="signal-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+            <div class="analysis-result" id="analysis-result" hidden>
+              <div class="transmission-meta">INCIDENT REPORT <span id="analysis-mode"></span></div>
+              <div class="finding-summary">
+                <div class="finding-head"><h3 id="analysis-title">Diagnostic report</h3><span class="severity-chip" id="severity-chip">CHECK</span></div>
+                <p id="analysis-summary"></p>
+              </div>
+              <div class="report-section"><h4>◈ PROBABLE CAUSE <span class="report-subtitle">AI HYPOTHESIS</span></h4><p id="analysis-cause"></p></div>
+              <div class="report-section"><h4>⌁ EVIDENCE FROM LOG <span class="report-subtitle" id="signals-count"></span></h4><div id="evidence-list" class="evidence-list"></div></div>
+              <div class="report-section"><h4>✓ SUGGESTED VERIFICATION</h4><ol id="analysis-checks" class="check-list"></ol></div>
+              <div class="report-section" id="diff-section" hidden>
+                <h4>⇄ CHANGES BETWEEN RUNS</h4>
+                <p id="diff-counts" class="diff-summary"></p>
+                <div class="diff-grid"><div><strong>+ Current</strong><div id="diff-added"></div></div><div><strong>− Previous</strong><div id="diff-removed"></div></div></div>
+              </div>
+              <div class="report-note" id="report-note"></div>
+              <div class="result-footer"><span id="analysis-redactions"></span><button type="button" id="copy-report-btn">⧉ Copy report</button></div>
             </div>
             <div class="story-result" id="story-result" hidden>
               <div class="transmission-meta">RECEIVED TRANSMISSION <span id="story-mode"></span></div>
@@ -69,6 +105,7 @@ ERROR: missing environment variable..."></textarea>
               <div class="result-footer"><span id="redaction-count"></span><button type="button" id="copy-btn">⧉ Copy story</button></div>
             </div>
           </div>
+          <div class="scenario-verification" id="scenario-verification" role="status" hidden></div>
           <div class="error-message" id="error-message" role="alert" hidden></div>
           <div class="output-foot"><span><i class="privacy-dot"></i> LOCALLY GENERATED · NEVER UPLOADED</span><span>MADE WITH <b>GEMMA 3</b> + <b>OLLAMA</b></span></div>
         </article>

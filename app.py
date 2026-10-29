@@ -13,10 +13,12 @@ from urllib.parse import urlsplit
 
 from ghost_terminal.core import MODES, prepare_input
 from ghost_terminal.ollama_client import ModelUnavailable, generate_story, model_status
+from ghost_terminal.analysis import extract_evidence, compare_logs
+from ghost_terminal.diagnosis import generate_diagnosis
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
-ROUTES = {"/": ("index.html", "text/html; charset=utf-8"), "/styles.css": ("styles.css", "text/css; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8")}
+ROUTES = {"/": ("index.html", "text/html; charset=utf-8"), "/styles.css": ("styles.css", "text/css; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"), "/scenarios.js": ("scenarios.js", "text/javascript; charset=utf-8")}
 MAX_REQUEST_BYTES = 25_000
 _rate_times = deque()
 _rate_lock = Lock()
@@ -95,7 +97,8 @@ class GhostHandler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def do_POST(self) -> None:
-        if urlsplit(self.path).path != "/api/interpret":
+        route = urlsplit(self.path).path
+        if route not in {"/api/interpret", "/api/analyze", "/api/compare"}:
             return self._json(404, {"error": "Not found"})
         origin = self.headers.get("Origin")
         if origin:
@@ -119,21 +122,34 @@ class GhostHandler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 return self._json(400, {"error": "Invalid request object."})
             mode = payload.get("mode", "haunting")
-            if mode not in MODES:
+            if route == "/api/interpret" and mode not in MODES:
                 return self._json(400, {"error": "Invalid story mode."})
             clean_log, redactions = prepare_input(payload.get("log"))
+            baseline = None
+            if route == "/api/compare":
+                baseline, baseline_redactions = prepare_input(payload.get("baseline"))
+                redactions += baseline_redactions
         except (ValueError, UnicodeDecodeError, TypeError) as exc:
             return self._json(400, {"error": str(exc) if isinstance(exc, ValueError) else "Invalid JSON."})
         if not _allow_inference():
             return self._json(429, {"error": "Demo is busy. Please retry in about a minute."})
         try:
-            story = generate_story(clean_log, mode)
+            if route == "/api/interpret":
+                story = generate_story(clean_log, mode)
+                return self._json(200, {"story": story, "redactions": redactions,
+                                        "mode": mode, "model": model_status()["model"]})
+            signals = extract_evidence(clean_log)
+            diff = compare_logs(baseline, clean_log) if baseline is not None else None
+            diagnosis = generate_diagnosis(clean_log, signals, baseline=baseline, changes=diff)
+            return self._json(200, {"analysis": diagnosis, "signals": signals,
+                                    "diff": diff, "redactions": redactions,
+                                    "mode": "compare" if baseline is not None else "analyze",
+                                    "model": model_status()["model"]})
         except ModelUnavailable as exc:
             return self._json(503, {"error": str(exc)})
         except Exception:
-            self.log_error("Unexpected inference failure")
-            return self._json(500, {"error": "Unexpected local inference error."})
-        self._json(200, {"story": story, "redactions": redactions, "mode": mode, "model": model_status()["model"]})
+            self.log_error("Unexpected model inference failure")
+            return self._json(500, {"error": "Unexpected inference error."})
 
     def log_message(self, format: str, *args: object) -> None:
         return

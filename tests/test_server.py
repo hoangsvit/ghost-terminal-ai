@@ -33,7 +33,12 @@ class ServerTests(unittest.TestCase):
     def test_html(self):
         status, html = self.req('GET','/')
         self.assertEqual(status,200)
-        self.assertIn(b'Every log leaves',html)
+        self.assertIn(b'Find the ghost',html)
+
+    def test_scenario_catalog_served(self):
+        status, body = self.req('GET', '/scenarios.js')
+        self.assertEqual(status, 200)
+        self.assertIn(b'TEST_SCENARIOS', body)
 
     def test_traversal_not_served(self):
         status, _ = self.req('GET','/../../app.py')
