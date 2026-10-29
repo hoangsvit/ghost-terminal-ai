@@ -4,6 +4,23 @@ This deployment is for a **public demonstration**, running **Gemma 3 1B through 
 
 > Hosted mode is **not local to the visitor's device**. Input travels to the Compute Engine VM for inference. Never paste credentials or private logs. Input redaction is best effort. Caddy uses an external `sslip.io` DNS name; this is a third-party domain service, not an official Google Cloud domain.
 
+## Quick start: one command for any GCP project
+
+In Google Cloud Shell, select the *intended project*. You can explicitly supply its ID to avoid confusing temporary Qwiklabs projects:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm/update.sh -o /tmp/ghost-update.sh
+bash /tmp/ghost-update.sh --project YOUR_PROJECT_ID --ref main
+```
+
+**If the project contains no `ghost-terminal-ai-vm`, the script now creates it automatically.** A new deployment installs Ollama + Gemma 3 1B, configures a tagged firewall rule for ports 80/443, starts Caddy, and checks the public HTTPS health endpoint until `ready: true` and `deployment: vm`. If a VM is already running, it updates application code and verifies local + public health. A stopped VM is started in deploy mode. It will **not** silently claim success when it lacks required IAM permissions, region quota, HTTPS or model availability.
+
+You can specify `--zone us-east1-d` if your lab has an allowed zone. A new VM incurs Compute Engine/disk/public IP charges. When the default region is restricted by organization policy, the provisioner attempts a small list of candidate regions; other errors terminate immediately. No automatic resource deletion occurs on failure.
+
+To check an existing VM without mutation: `bash /tmp/ghost-update.sh --project YOUR_PROJECT_ID --status`. To disallow provisioning: `--no-create`. To revert the last code update: `--rollback`.
+
+The first bootstrap downloads the model (possibly several minutes). If Cloud Shell disconnects, the VM's GCE startup script continues; rerun the deploy command to inspect/update the existing resource rather than creating another VM. If bootstrap does not finish, inspect `/var/log/ghost-terminal-bootstrap.log` on that VM. The script reports a nonzero exit instead of inventing a working URL.
+
 ## Architecture
 
 ```text
@@ -19,24 +36,23 @@ Only **ports 80 and 443** are opened through a firewall rule restricted by VM ne
 Select the intended GCP project first. Check billing; Compute Engine, its disk and public IPv4 address **can incur charges even when the demo is idle**. Qwiklabs projects are temporary and resource creation can be prohibited by Organization Policy.
 
 ```bash
-gcloud config get-value project
-git clone --branch main --single-branch \
-  https://github.com/hoangsvit/ghost-terminal-ai.git ghost-terminal-vm
-cd ghost-terminal-vm
-bash vm/deploy.sh
+curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm/deploy.sh -o /tmp/ghost-deploy.sh
+bash /tmp/ghost-deploy.sh --project YOUR_PROJECT_ID --ref main
 ```
+
+This alternate direct provisioner also detects existing VMs and delegates to the updater. The recommended single entrypoint is `vm/update.sh` above.
 
 The wrapper enables the Compute Engine API, chooses an existing/default zone first, and tries alternative zones **only for resource-location-policy errors**. It creates an Ubuntu VM `ghost-terminal-ai-vm`, default `e2-standard-2` (2 vCPU / 8 GB RAM), with a 30 GB persistent disk. The startup script runs **on the VM**: cloud terminal disconnects will not kill installation. It downloads Ollama and Gemma exactly once into persistent storage and registers systemd services.
 
-When a VM already has the same name, the wrapper **does not overwrite its data or reinitialize it**.
+When the VM already exists, the wrapper **does not overwrite its data or reinitialize it**; it calls the updater and validates the deployed code. New VMs carry the requested Git ref in instance metadata so startup installs that exact branch.
 
 Choose a zone explicitly if the lab restricts locations:
 
 ```bash
-ZONE=us-central1-a bash vm/deploy.sh
+bash /tmp/ghost-update.sh --project YOUR_PROJECT_ID --zone us-central1-a --ref main
 ```
 
-You may also set `VM_NAME`, `PROJECT_ID`, `MACHINE_TYPE`, `NETWORK` and `FIREWALL_RULE` as environment variables before running. No `gcloud auth login` is necessary if Cloud Shell is already authenticated.
+For the direct provisioner, you may also set `VM_NAME`, `PROJECT_ID`, `REF`, `MACHINE_TYPE`, `NETWORK` and `FIREWALL_RULE` as environment variables before running. No `gcloud auth login` is necessary if Cloud Shell is already authenticated.
 
 ### Recovery: Ollama error `panic: $HOME is not defined`
 
@@ -63,7 +79,7 @@ When `gcloud compute instances create` succeeds, the script prints a **candidate
 https://34-xx-xx-xx.sslip.io
 ```
 
-Actually, the `sslip.io` hostname uses the IPv4 address **with dots** (for example `https://34.12.34.56.sslip.io`), and Caddy requests a TLS certificate after startup. The script cannot promise that the URL is live until model installation, DNS resolution and automatic certificate issuance succeed.
+Actually, the `sslip.io` hostname uses the IPv4 address **with dots** (for example `https://34.12.34.56.sslip.io`), and Caddy requests a TLS certificate after startup. The default deploy command **waits and verifies HTTPS and model readiness** before announcing a working URL. Use `vm/deploy.sh --no-wait` only when you intentionally want provisioning to continue without that verification.
 
 View setup progress from a fresh Cloud Shell session:
 
@@ -137,4 +153,4 @@ curl -fsSL https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/main/vm
 bash /tmp/ghost-update.sh --ref main
 ```
 
-**Safety:** This script never creates a VM, reinstalls Ollama/model weights, or modifies Caddy/firewall rules. It refuses to overwrite uncommitted changes and checks `/api/health` after updating. Failed updates trigger an automatic attempt to restore the previous commit. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.
+**Safety:** In deploy mode, this script **creates a VM when none exists** in the selected project. On an existing VM it does not reinstall Ollama, reload model weights or modify Caddy/firewall rules. Use `--no-create` to forbid provisioning. It refuses to overwrite uncommitted changes and checks `/api/health` after updating. Failed updates trigger an automatic attempt to restore the previous commit. Switching branches on the VM changes the live website; do this only when you intend to preview/deploy. Qwiklabs VMs and sslip.io URLs may expire with the lab.

@@ -72,11 +72,57 @@ class RepositoryHealthTests(unittest.TestCase):
         deploy = (ROOT / "vm" / "deploy.sh").read_text()
         startup = (ROOT / "vm" / "startup.sh").read_text()
         guide = (ROOT / "DEPLOY_COMPUTE_ENGINE.md").read_text()
-        self.assertIn("/main/vm/startup.sh", deploy)
-        self.assertIn("git clone --depth=1 --branch=main", startup)
-        self.assertIn("git clone --branch main", guide)
+        self.assertIn('$REF/vm/startup.sh', deploy)
+        self.assertIn('git clone --depth=1 --branch="$REPO_REF"', startup)
+        self.assertIn("vm/update.sh", guide)
         for source in (deploy, startup, guide):
             self.assertNotIn("feature/compute-engine-vm-gemma3", source)
+
+    def test_readme_covers_the_full_user_and_contributor_journey(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        sections = [
+            "## What can it do?", "## Try it locally",
+            "## Use the web interface", "## API reference",
+            "## Deploy on Google Compute Engine",
+            "## Architecture and project structure",
+            "## Configuration", "## Testing",
+            "## Privacy, security and limitations",
+            "## Troubleshooting", "## Contributing and support",
+            "## License and acknowledgements",
+        ]
+        for section in sections:
+            with self.subTest(section=section):
+                self.assertIn(section, readme)
+        for endpoint in (
+            "/api/health", "/api/inspect", "/api/analyze",
+            "/api/compare", "/api/interpret",
+        ):
+            self.assertIn(endpoint, readme)
+        for filename in ("CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md",
+                         "SUPPORT.md", "LICENSE", "CHANGELOG.md",
+                         "DEPLOY_COMPUTE_ENGINE.md"):
+            self.assertIn(f"]({filename})", readme)
+
+    def test_readme_deploy_guidance_distinguishes_main_from_preview(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("**After that PR is merged into `main`**", readme)
+        self.assertIn("fix/one-command-vm-deploy-and-update/vm/update.sh", readme)
+        self.assertIn("--project YOUR_PROJECT_ID --ref main", readme)
+        self.assertIn("--no-create", readme)
+        self.assertIn("--status", readme)
+        self.assertIn("--rollback", readme)
+        self.assertIn("may incur charges", readme.lower())
+        self.assertNotIn("feature/compute-engine-vm-gemma3", readme)
+        self.assertNotIn("feature/instant-log-triage-reports", readme)
+
+    def test_readme_discloses_actual_limits_and_hosted_privacy(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
+        for value in ("6,000 characters", "100 lines", "25,000 bytes",
+                      "best effort", "before", "server-side",
+                      "not verified", "no automatic"):
+            with self.subTest(term=value):
+                self.assertIn(value, readme)
+        self.assertIn("no detected error", readme)
 
     def test_ci_no_automatic_deployment_or_write_access(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text()

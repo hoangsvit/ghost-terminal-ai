@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-command updates for an EXISTING Google Compute Engine VM. No VM/model recreation.
+# One command: update an existing VM, or safely provision a new VM in the selected GCP project.
 set -Eeuo pipefail
 RESET=$'\033[0m'; GREEN=$'\033[0;32m'; BLUE=$'\033[0;34m'; YELLOW=$'\033[0;33m'
 info(){ printf '%s%s%s\n' "$BLUE" "$*" "$RESET"; }
@@ -7,6 +7,7 @@ warn(){ printf '%s%s%s\n' "$YELLOW" "$*" "$RESET" >&2; }
 die(){ echo "ERROR: $*" >&2; exit 1; }
 
 MODE=deploy
+AUTO_CREATE=1
 REF="${REF:-main}"
 PROJECT_ID="${PROJECT_ID:-}"
 ZONE="${ZONE:-}"
@@ -14,12 +15,13 @@ VM_NAME="${VM_NAME:-ghost-terminal-ai-vm}"
 
 usage(){
   cat <<'HELP'
-ePlus.DEV | Ghost Terminal AI — Update existing Compute Engine VM
+ePlus.DEV | Ghost Terminal AI — Deploy or update an existing Compute Engine VM
 
   bash vm/update.sh --ref main
-  bash vm/update.sh --ref feature/instant-log-triage-reports
+  bash vm/update.sh --ref feature/my-reviewed-branch
   bash vm/update.sh --status
   bash vm/update.sh --rollback
+  bash vm/update.sh --no-create --ref main
 
 Options:
   --ref BRANCH    Git branch to deploy (default: main)
@@ -28,9 +30,11 @@ Options:
   --vm NAME       VM name (default: ghost-terminal-ai-vm)
   --status        Inspect running version and service without modifying VM
   --rollback      Restore previous deployed commit
+  --no-create     Fail if VM is missing instead of provisioning one
   --help          Show this help
 
-Does NOT create a VM, modify firewall rules, or reinstall Ollama/models.
+Deploy mode provisions a new VM when none exists in the selected project.
+New VM, disk and public IP may incur charges. Existing VM keeps Ollama/model weights.
 HELP
 }
 while (( $# )); do
@@ -46,6 +50,7 @@ while (( $# )); do
     --project=*) PROJECT_ID="${1#*=}"; shift ;;
     --zone=*) ZONE="${1#*=}"; shift ;;
     --vm=*) VM_NAME="${1#*=}"; shift ;;
+    --no-create) AUTO_CREATE=0; shift ;;
     --status) [[ "$MODE" == deploy ]] || die "Choose one mode"; MODE=status; shift ;;
     --rollback) [[ "$MODE" == deploy ]] || die "Choose one mode"; MODE=rollback; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -62,21 +67,52 @@ command -v gcloud >/dev/null || die "Run this script in Google Cloud Shell"
 printf '%s\n' "${GREEN}ePlus.DEV - Starting Execution${RESET}"
 PROJECT_ID="${PROJECT_ID:-$(gcloud config get-value project 2>/dev/null)}"
 [[ -n "$PROJECT_ID" && "$PROJECT_ID" != "(unset)" ]] || die "Select project or use --project."
-info "[1/3] Locate running VM | Project: $PROJECT_ID"
-if [[ -z "$ZONE" ]]; then
-  FOUND=0
-  # Zone may be a short name or a full Compute Engine resource URL.
-  while IFS=$'\t' read -r name vm_zone vm_status; do
-    [[ "$name" == "$VM_NAME" ]] || continue
-    FOUND=$((FOUND+1))
-    ZONE="${vm_zone##*/}"
-    STATUS="$vm_status"
-  done < <(gcloud compute instances list --project="$PROJECT_ID" --format='value(name,zone,status)')
-  (( FOUND == 1 )) || die "Expected one existing $VM_NAME VM, found $FOUND. Check --project/--zone."
-else
-  STATUS="$(gcloud compute instances describe "$VM_NAME" --project="$PROJECT_ID" --zone="$ZONE" --format='get(status)')"
+info "[1/3] Locate VM in explicitly selected project: $PROJECT_ID"
+# A permissions/API error must not be interpreted as "VM does not exist".
+if ! FOUND_VMS="$(gcloud compute instances list --project="$PROJECT_ID" \
+  --format='csv[no-heading](name,zone,status)')"; then
+  die "Unable to list instances in $PROJECT_ID. Check Cloud IAM/API permissions."
 fi
-[[ "$STATUS" == RUNNING ]] || die "VM must be RUNNING (actual: $STATUS)"
+FOUND=0
+DETECTED_ZONE=""
+STATUS=""
+while IFS=',' read -r name vm_zone vm_status; do
+  [[ "$name" == "$VM_NAME" ]] || continue
+  FOUND=$((FOUND+1))
+  DETECTED_ZONE="${vm_zone##*/}"
+  STATUS="$vm_status"
+done <<< "$FOUND_VMS"
+(( FOUND <= 1 )) || die "Multiple instances named $VM_NAME found; specify --zone."
+if (( FOUND == 0 )); then
+  [[ "$MODE" == deploy ]] || die "VM $VM_NAME does not exist in $PROJECT_ID; cannot $MODE."
+  (( AUTO_CREATE )) || die "VM missing in $PROJECT_ID and --no-create was specified."
+  warn "No $VM_NAME VM in project $PROJECT_ID. Provisioning a NEW VM in this project (may incur charges)."
+  # Fetch matching deploy script from the SAME selected branch; safe even with no local clone.
+  command -v curl >/dev/null || die "curl required to download the provisioning script"
+  DEPLOY_SCRIPT="$(mktemp)"
+  trap 'rm -f "$DEPLOY_SCRIPT"' EXIT
+  curl -fsSL --retry 3 \
+    "https://raw.githubusercontent.com/hoangsvit/ghost-terminal-ai/$REF/vm/deploy.sh" \
+    -o "$DEPLOY_SCRIPT" || die "Could not download vm/deploy.sh for $REF."
+  bash -n "$DEPLOY_SCRIPT" || die "Downloaded provisioning script has invalid syntax."
+  COMMAND=(bash "$DEPLOY_SCRIPT" --ref "$REF" --project "$PROJECT_ID" --vm "$VM_NAME")
+  [[ -z "$ZONE" ]] || COMMAND+=(--zone "$ZONE")
+  "${COMMAND[@]}"
+  exit $?
+fi
+if [[ -n "$ZONE" && "$ZONE" != "$DETECTED_ZONE" ]]; then
+  die "Found $VM_NAME in $DETECTED_ZONE, not $ZONE; refusing to modify a different VM."
+fi
+ZONE="$DETECTED_ZONE"
+if [[ "$STATUS" != RUNNING ]]; then
+  if [[ "$STATUS" == TERMINATED && "$MODE" == deploy ]]; then
+    warn "Existing VM is stopped. Starting it (billing may resume)."
+    gcloud compute instances start "$VM_NAME" --project="$PROJECT_ID" --zone="$ZONE" --quiet ||
+      die "Failed to start existing VM."
+  else
+    die "VM is $STATUS; cannot run mode $MODE. Start the VM explicitly first."
+  fi
+fi
 info "[2/3] VM=$VM_NAME | Zone=$ZONE | Mode=$MODE | Ref=$REF"
 [[ "$PROJECT_ID" == qwiklabs-* ]] && warn "Qwiklabs VM may expire at lab end."
 IP="$(gcloud compute instances describe "$VM_NAME" --project="$PROJECT_ID" --zone="$ZONE" \
@@ -166,7 +202,19 @@ health || { journalctl -u ghost-terminal -n 60 --no-pager; false; }
 trap - ERR
 echo "SUCCESS: Deployed $target"
 REMOTE
-if [[ -n "$IP" ]]; then
-  printf '%sWebsite: https://%s.sslip.io%s\n' "$GREEN" "$IP" "$RESET"
-fi
-printf '%s\n' "${GREEN}Done. Ollama, model, disk and HTTPS proxy unchanged.${RESET}"
+[[ -n "$IP" ]] || die "App updated but VM has no public IPv4 address. Cannot verify HTTPS."
+URL="https://$IP.sslip.io"
+info "Verifying public HTTPS at $URL/api/health ..."
+PUBLIC_READY=0
+for check in {1..12}; do
+  if RESPONSE="$(curl -fsS --connect-timeout 5 --max-time 10 "$URL/api/health" 2>/dev/null)" &&
+    python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("ready") is True and d.get("deployment")=="vm"' <<< "$RESPONSE"; then
+    PUBLIC_READY=1
+    break
+  fi
+  info "Public HTTPS pending ($check/12)"
+  sleep 5
+done
+(( PUBLIC_READY )) || die "Application updated, but public HTTPS was not verified. Check Caddy, DNS/certificate and ingress 80/443."
+printf '%sWebsite verified: %s%s\n' "$GREEN" "$URL" "$RESET"
+printf '%s\n' "${GREEN}SUCCESS. Existing VM updated; Ollama, model and disk preserved.${RESET}"
